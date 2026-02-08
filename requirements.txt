@@ -1,0 +1,17 @@
+# FastAPI 学习项目依赖
+
+# Level 0: 并发与异步基础
+# asyncio 是 Python 标准库，无需安装
+
+# Level 1: FastAPI 基础
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+
+# 测试
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0
+
+# 开发工具
+ruff>=0.1.0

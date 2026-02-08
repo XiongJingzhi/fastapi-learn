@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/xiongfeng/SourceCode/fastapi/requirements.txt << 'EOF'\n# FastAPI 学习项目依赖\n\n# Level 0: 并发与异步基础\n# asyncio 是 Python 标准库，无需安装\n\n# Level 1: FastAPI 基础\nfastapi>=0.104.0\nuvicorn[standard]>=0.24.0\npydantic>=2.5.0\n\n# 测试\npytest>=7.4.0\npytest-asyncio>=0.21.0\nhttpx>=0.25.0\n\n# 开发工具\nruff>=0.1.0\nEOF)",
+      "Bash(chmod:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(pip install:*)"
+    ]
+  }
+}

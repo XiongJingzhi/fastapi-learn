@@ -1,0 +1,45 @@
+[
+  {
+    "from": "user",
+    "text": "帮我设计当前项目，使之符合我的Level 0基础。",
+    "timestamp": "2026-02-08T07:56:52.019Z",
+    "read": true
+  },
+  {
+    "from": "team-lead",
+    "text": "同学们，我们的学习伙伴准备好开始学习 FastAPI 了！\n\n**当前任务**：Level 0 - 并发与异步基础\n\n**feynman-mentor**：请先评估学习伙伴的当前水平，然后从阶段 0.1 开始提供 i+1 的学习内容。\n\n**architect** 和 **senior-dev**：请准备好在后续阶段提供支持，讲解原理和提供代码示例。\n\n让我们开始吧！",
+    "summary": "开始 Level 0 学习",
+    "timestamp": "2026-02-08T07:59:29.547Z",
+    "read": true
+  },
+  {
+    "from": "team-lead",
+    "text": "团队注意：从现在开始，所有学习内容都要输出到项目的 `study/` 目录下！\n\n**重要规则**：\n- 每次学习集合的内容都要记录到 `study/` 目录\n- 学习笔记放在 `study/level0/`, `study/level1/` 等对应目录\n- 代码示例也保存到对应的 study 目录\n- 这样可以看到项目从零开始的完整演化过程\n\n**feynman-mentor**：你的费曼笔记和学习总结要保存到 study 目录\n**senior-dev**：你的代码示例要保存到 study 目录\n**architect**：你的架构讲解要保存到 study 目录\n\n让我们开始 Level 0 的学习！",
+    "summary": "更新学习流程：所有内容保存到 study 目录",
+    "timestamp": "2026-02-08T08:04:11.931Z",
+    "read": true
+  },
+  {
+    "from": "feynman-mentor",
+    "text": "## 🎉 Level 0 学习正式启动！\n\n### 📚 当前阶段：阶段 0.1 - 并发 vs 并行\n\n所有学习材料已保存到 `study/level0/` 目录。\n\n---\n\n### 📂 核心文件\n\n1. **START_HERE.md** - 学习导航（从这里开始！）\n2. **费曼笔记** - notes/01_concurrent_vs_parallel_feynman.md\n3. **理解验证** - notes/01_understanding_check.md\n4. **学习指南** - notes/01_learning_guide.md\n\n---\n\n### 🎯 核心概念（最简版）\n\n- **并发** = 轮流做（一个人交替做两件事）\n- **并行** = 同时做（两个人各做一件事）\n\n---\n\n### 🤝 团队角色\n\n**feynman-mentor**：提供 i+1 学习内容，简化复杂概念\n\n**architect**：准备在理解基础后深入讲解原理和架构\n\n**senior-dev**：准备提供代码示例和实战演示\n\n---\n\n### 📮 学习伙伴\n\n请从 `study/level0/START_HERE.md` 开始你的学习之旅！\n\n遇到任何问题，随时在团队中提问。记住：\n> **\"学习的关键在于找到你的 i+1 区域。\"**\n\nLet's go! 🚀",
+    "summary": "阶段 0.1 学习材料就绪",
+    "timestamp": "2026-02-08T08:08:45.567Z",
+    "color": "yellow",
+    "read": true
+  },
+  {
+    "from": "feynman-mentor",
+    "text": "## architect，准备就绪！\n\n学习伙伴提出了非常深入的问题，我已经用 i+1 的方式讲解了基础概念：\n\n### 已完成的讲解\n\n1. **asyncio 的作用** - 事件循环管理 + 异步工具箱\n2. **事件循环如何工作** - while 循环 + 任务切换\n3. **同步任务的阻塞问题** - 重点强调这个陷阱\n\n### 学习伙伴的当前理解\n\n基于他的评估和问题，他现在应该：\n- ✅ 理解异步 ≠ 多线程（已澄清误解）\n- ✅ 理解事件循环的基本概念\n- ✅ 理解同步代码会阻塞\n- ⚠️ 还需要深入理解底层机制\n\n### 需要你深入讲解的内容\n\n现在学习伙伴已经理解了\"是什么\"，可以请你讲解\"为什么\"：\n\n1. **操作系统层面的支持**\n   - epoll (Linux) / kqueue (macOS/BSD) / IOCP (Windows)\n   - 为什么单线程可以监听成千上万个文件描述符\n   - 非阻塞 I/O 的系统调用\n\n2. **协程 vs 线程的内存模型**\n   - 协程的栈内存（几 KB）vs 线程的栈内存（几 MB）\n   - 上下文切换的成本（用户态 vs 内心态）\n   - 为什么协程比线程轻量 100 倍\n\n3. **事件循环的底层实现**\n   - asyncio.SelectorEventLoop 的工作原理\n   - 如何注册 I/O 事件到操作系统\n   - 如何唤醒暂停的协程\n\n4. **FastAPI 的架构优势**\n   - Starlette 如何利用 asyncio\n   - 为什么单个进程可以处理数万并发请求\n   - 与 Go 的 goroutine 对比\n\n这些内容会帮助学习伙伴从\"会用\"提升到\"理解原理\"。\n\n### 建议的讲解方式\n\n- 可以用图示展示操作系统层面的机制\n- 对比多线程和协程的资源消耗\n- 结合 FastAPI 的实际应用场景\n\n文档请保存到 `study/level0/notes/` 目录，文件名可以是 `03_architect_deep_dive.md`\n\n谢谢！",
+    "summary": "准备深入讲解事件循环机制",
+    "timestamp": "2026-02-08T16:28:54.052Z",
+    "color": "yellow",
+    "read": true
+  },
+  {
+    "from": "team-lead",
+    "text": "architect，feynman-mentor 已经用简单方式为学习伙伴讲解了 asyncio 和事件循环的基础。\n\n现在学习伙伴已经理解了基本概念，希望你能从架构角度深入讲解：\n\n1. **事件循环的底层实现**\n   - 操作系统层面的支持（epoll/kqueue/IOCP）\n   - 为什么单线程能处理大量并发\n   - Reactor 模式的应用\n\n2. **协程 vs 线程 vs 进程**\n   - 协程的内存模型（为什么比线程轻量）\n   - 协程调度的开销\n   - 什么时候用协程/线程/进程\n\n3. **FastAPI/Starlette 如何利用这个机制**\n   - Starlette 的异步架构\n   - 为什么 FastAPI 性能好\n   - 与 Express/Koa 的架构对比\n\n这些深入的架构知识会帮助学习伙伴真正理解\"为什么\"，而不仅仅是\"怎么做\"。\n\n请将详细讲解保存到 `study/level0/notes/03_architecture_deep_dive.md`",
+    "summary": "深入讲解事件循环架构",
+    "timestamp": "2026-02-08T16:29:11.917Z",
+    "read": false
+  }
+]
