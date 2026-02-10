@@ -234,8 +234,8 @@ cd study/level0
 
 ## 📊 项目状态
 
-- [x] Level 0：并发基础（🟡 进行中）
-- [ ] Level 1：FastAPI 协议层
+- [✅] Level 0：并发基础
+- [ ] Level 1：FastAPI 协议层（🟡 进行中）
 - [ ] Level 2：依赖注入与生命周期
 - [ ] Level 3：外部系统集成
 - [ ] Level 4：生产就绪

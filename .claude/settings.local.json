@@ -6,7 +6,10 @@
       "Bash(python:*)",
       "Bash(python3:*)",
       "Bash(pytest:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(wc:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)"
     ]
   }
 }
