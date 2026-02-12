@@ -1,0 +1,316 @@
+# ========================================
+# Kubernetes ConfigMap 配置
+# ========================================
+# 说明：存储非敏感的配置信息
+# 功能：
+# 1. 环境变量注入
+# 2. 配置文件挂载
+# 3. 命令行参数
+# ========================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-config  # ConfigMap 名称
+  labels:
+    app: fastapi-app
+
+# ----------------------------------------
+# 配置数据
+# ----------------------------------------
+data:
+  # ----------------------------------------
+  # 方式 1: 键值对（用于环境变量）
+  # ----------------------------------------
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "info"
+  APP_NAME: "FastAPI Production App"
+  APP_VERSION: "1.0.0"
+
+  # 数据库配置（非敏感部分）
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "appdb"
+
+  # Redis 配置（非敏感部分）
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+
+  # 应用配置
+  API_PREFIX: "/api/v1"
+  MAX_UPLOAD_SIZE: "10485760"  # 10MB
+  ALLOWED_ORIGINS: "https://fastapi.example.com,https://www.fastapi.example.com"
+
+  # ----------------------------------------
+  # 方式 2: 完整的配置文件（用于挂载）
+  # ----------------------------------------
+
+  # 应用配置文件（YAML 格式）
+  app-config.yaml: |
+    environment: production
+    debug: false
+    log_level: info
+
+    server:
+      host: 0.0.0.0
+      port: 8000
+      workers: 4
+
+    database:
+      pool_size: 20
+      max_overflow: 10
+      pool_timeout: 30
+      pool_recycle: 3600
+
+    redis:
+      max_connections: 50
+      socket_timeout: 5
+      socket_connect_timeout: 5
+
+    cache:
+      default_ttl: 300  # 5分钟
+      max_size: 10000
+
+    rate_limit:
+      enabled: true
+      requests_per_minute: 60
+
+    cors:
+      enabled: true
+      allow_origins:
+        - https://fastapi.example.com
+        - https://www.fastapi.example.com
+      allow_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allow_headers:
+        - Content-Type
+        - Authorization
+      expose_headers:
+        - X-Request-ID
+
+    # OpenAPI 配置
+    openapi:
+      title: FastAPI Production API
+      version: 1.0.0
+      description: Production FastAPI Application
+      docs_url: /docs  # 生产环境可能想要禁用
+      redoc_url: /redoc
+
+  # ----------------------------------------
+  # Nginx 配置文件（如果使用 Nginx sidecar）
+  # ----------------------------------------
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        keepalive_timeout 65;
+        gzip on;
+
+        upstream fastapi_backend {
+            server localhost:8000;
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            location / {
+                proxy_pass http://fastapi_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }
+
+# ========================================
+# 使用方式
+# ========================================
+
+# ----------------------------------------
+# 方式 1: 作为环境变量
+# ----------------------------------------
+# 在 Deployment 中引用：
+# spec:
+#   containers:
+#   - name: fastapi-app
+#     envFrom:
+#     - configMapRef:
+#         name: fastapi-config
+
+# ----------------------------------------
+# 方式 2: 作为单个环境变量
+# ----------------------------------------
+# spec:
+#   containers:
+#   - name: fastapi-app
+#     env:
+#     - name: LOG_LEVEL
+#       valueFrom:
+#         configMapKeyRef:
+#           name: fastapi-config
+#           key: LOG_LEVEL
+
+# ----------------------------------------
+# 方式 3: 挂载为文件
+# ----------------------------------------
+# spec:
+#   containers:
+#   - name: fastapi-app
+#     volumeMounts:
+#     - name: config-volume
+#       mountPath: /etc/config  # 挂载路径
+#       readOnly: true
+#   volumes:
+#   - name: config-volume
+#     configMap:
+#       name: fastapi-config
+
+# ========================================
+# 完整示例：在 Deployment 中使用
+# ========================================
+
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: fastapi-app
+# spec:
+#   template:
+#     spec:
+#       containers:
+#       - name: fastapi-app
+#         image: fastapi-app:latest
+#
+#         # 方式 1: 导入所有配置作为环境变量
+#         envFrom:
+#         - configMapRef:
+#             name: fastapi-config
+#
+#         # 方式 2: 导入特定的配置
+#         env:
+#         - name: CUSTOM_ENV
+#           valueFrom:
+#             configMapKeyRef:
+#               name: fastapi-config
+#               key: LOG_LEVEL
+#
+#         # 方式 3: 挂载配置文件
+#         volumeMounts:
+#         - name: app-config
+#           mountPath: /etc/config/app-config.yaml
+#           subPath: app-config.yaml  # 只挂载单个文件
+#           readOnly: true
+#
+#       volumes:
+#       - name: app-config
+#         configMap:
+#           name: fastapi-config
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 创建 ConfigMap：
+#    kubectl apply -f configmap.yaml
+#
+# 2. 查看 ConfigMap：
+#    kubectl get configmap
+#    kubectl describe configmap fastapi-config
+#    kubectl get configmap fastapi-config -o yaml
+#
+# 3. 查看 ConfigMap 中的特定键：
+#    kubectl get configmap fastapi-config -o jsonpath='{.data.LOG_LEVEL}'
+#
+# 4. 从文件创建 ConfigMap：
+#    kubectl create configmap my-config --from-file=config.yaml
+#
+# 5. 从目录创建 ConfigMap：
+#    kubectl create configmap my-config --from-file=./config/
+#
+# 6. 从字面值创建 ConfigMap：
+#    kubectl create configmap my-config --from-literal=KEY1=VALUE1 --from-literal=KEY2=VALUE2
+#
+# 7. 更新 ConfigMap：
+#    kubectl apply -f configmap.yaml
+#    # 注意：更新 ConfigMap 不会自动重启 Pod
+#    # 需要手动重启 Pod 或使用 Reloader 工具
+#
+# 8. 删除 ConfigMap：
+#    kubectl delete configmap fastapi-config
+#
+# 9. 编辑 ConfigMap：
+#    kubectl edit configmap fastapi-config
+#
+# ========================================
+# 热更新配置
+# ========================================
+#
+# ConfigMap 更新后，Pod 不会自动重启。有几种方式实现热更新：
+#
+# 1. 手动重启 Pod：
+#    kubectl rollout restart deployment fastapi-app
+#
+# 2. 使用 Reloader 工具（自动监控 ConfigMap 变化并重启 Pod）：
+#    kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+#    # 在 Deployment 中添加注释：
+#    # metadata:
+#    #   annotations:
+#    #     configmap.reloader.stakater.com/reload: "fastapi-config"
+#
+# 3. 在应用中监听配置文件变化（需要应用支持）：
+#    # 使用 Python 的 watchdog 库监听文件变化
+#    # 或定期重新加载配置
+#
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. 配置分离：
+#    - ConfigMap：存储非敏感配置
+#    - Secret：存储敏感信息（密码、密钥）
+#
+# 2. 不可变 ConfigMap（Immutable）：
+#    # 设置后无法修改，需要删除重建
+#    # 优点：提高性能，Pod 不需要监听变化
+#    immutable: true
+#
+# 3. 版本管理：
+#    - 将 ConfigMap 纳入版本控制
+#    - 使用 Kustomize 或 Helm 管理不同环境的配置
+#
+# 4. 命名规范：
+#    - 使用描述性名称
+#    - 包含应用名称和环境
+#    - 例如：fastapi-config-prod
+#
+# 5. 配置验证：
+#    - 在部署前验证配置
+#    - 使用 pre-commit hooks
+#    - 使用 Kubeval 验证 YAML 语法
+#
+# ========================================

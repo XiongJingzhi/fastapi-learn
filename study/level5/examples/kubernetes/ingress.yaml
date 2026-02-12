@@ -1,0 +1,308 @@
+# ========================================
+# Kubernetes Ingress 配置
+# ========================================
+# 说明：为 FastAPI 应用配置外部访问入口
+# 功能：
+# 1. 基于 Host 和 Path 的路由
+# 2. SSL/TLS 终止
+# 3. 负载均衡
+# 4. URL 重写和重定向
+# ========================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fastapi-ingress  # Ingress 名称
+  labels:
+    app: fastapi-app
+  annotations:
+    # ----------------------------------------
+    # Ingress Controller 类型
+    # ----------------------------------------
+    # 根据使用的 Ingress Controller 选择注释
+
+    # NGINX Ingress Controller（推荐）
+    kubernetes.io/ingress.class: nginx
+
+    # SSL/HTTPS 配置
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # 使用 Let's Encrypt 自动签发证书
+    # cert-manager.io/cluster-issuer: letsencrypt-staging  # 测试环境
+
+    # ----------------------------------------
+    # NGINX 配置（高级）
+    # ----------------------------------------
+    # 客户端请求体大小限制（上传文件时需要）
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+
+    # 超时配置
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+
+    # 启用 WebSocket
+    nginx.ingress.kubernetes.io/websocket-services: "fastapi-service"
+
+    # CORS 配置（如果需要在 Ingress 层处理）
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+
+    # 白名单（仅允许特定 IP 访问）
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,192.168.0.0/16"
+
+    # 速率限制（防止 DDoS）
+    # nginx.ingress.kubernetes.io/limit-rps: "100"  # 每秒请求数
+
+    # URL 重写
+    # nginx.ingress.kubernetes.io/rewrite-target: /$2
+
+spec:
+  # ----------------------------------------
+  # TLS 配置（HTTPS）
+  # ----------------------------------------
+  tls:
+  - hosts:
+    - fastapi.example.com  # 你的域名
+    - api.fastapi.example.com  # 支持多个域名
+    secretName: fastapi-tls-secret  # TLS 证书 Secret
+
+  # ----------------------------------------
+  # 路由规则
+  # ----------------------------------------
+  rules:
+  # ----------------------------------------
+  # 规则 1: 主域名
+  # ----------------------------------------
+  - host: fastapi.example.com  # 你的域名
+    http:
+      paths:
+      # 路径 1: API 路由
+      - path: /api  # URL 路径前缀
+        pathType: Prefix  # 路径类型：Prefix（前缀匹配）, Exact（精确匹配）, ImplementationSpecific
+        backend:
+          service:
+            name: fastapi-service  # 后端 Service 名称
+            port:
+              number: 80  # Service 端口
+
+      # 路径 2: 健康检查（不需要认证）
+      # - path: /health
+      #   pathType: Exact
+      #   backend:
+      #     service:
+      #       name: fastapi-service
+      #       port:
+      #         number: 80
+
+  # ----------------------------------------
+  # 规则 2: API 子域名
+  # ----------------------------------------
+  - host: api.fastapi.example.com
+    http:
+      paths:
+      - path: /  # 根路径
+        pathType: Prefix
+        backend:
+          service:
+            name: fastapi-service
+            port:
+              number: 80
+
+# ========================================
+# 完整示例：多路由配置
+# ========================================
+
+# ----------------------------------------
+# 场景 1: 多个路径路由到不同的服务
+# ----------------------------------------
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: fastapi-ingress-multi
+#   annotations:
+#     kubernetes.io/ingress.class: nginx
+# spec:
+#   rules:
+#   - host: fastapi.example.com
+#     http:
+#       paths:
+#       # /api 路由到 FastAPI 服务
+#       - path: /api
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: fastapi-service
+#             port:
+#               number: 80
+#       # /docs 路由到文档服务
+#       - path: /docs
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: fastapi-docs-service
+#             port:
+#               number: 80
+#       # /metrics 路由到监控服务
+#       - path: /metrics
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: prometheus-service
+#             port:
+#               number: 9090
+
+# ----------------------------------------
+# 场景 2: URL 重写
+# ----------------------------------------
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: fastapi-ingress-rewrite
+#   annotations:
+#     kubernetes.io/ingress.class: nginx
+#     nginx.ingress.kubernetes.io/rewrite-target: /$2  # 重写 URL
+# spec:
+#   rules:
+#   - host: fastapi.example.com
+#     http:
+#       paths:
+#       # 访问 /v1/api/users -> 重写为 /api/users
+#       - path: /v1(/|$)(.*)
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: fastapi-service
+#             port:
+#               number: 80
+
+# ----------------------------------------
+# 场景 3: 金丝雀发布（基于 Header）
+# ----------------------------------------
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: fastapi-ingress-canary
+#   annotations:
+#     kubernetes.io/ingress.class: nginx
+#     # 金丝雀发布：10% 的流量到新版本
+#     nginx.ingress.kubernetes.io/canary: "true"
+#     nginx.ingress.kubernetes.io/canary-weight: "10"
+#     # 或者基于 Header：
+#     # nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+#     # nginx.ingress.kubernetes.io/canary-by-header-value: "true"
+# spec:
+#   rules:
+#   - host: fastapi.example.com
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: fastapi-service-v2  # 新版本服务
+#             port:
+#               number: 80
+
+# ========================================
+# TLS 证书管理（使用 cert-manager）
+# ========================================
+
+# ----------------------------------------
+# ClusterIssuer（自动签发证书）
+# ----------------------------------------
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-prod
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: your-email@example.com
+#     privateKeySecretRef:
+#       name: letsencrypt-prod
+#     solvers:
+#     - http01:
+#         ingress:
+#           class: nginx
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 安装 Ingress Controller（如果还没安装）：
+#    # NGINX Ingress Controller
+#    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+#
+#    # 验证安装
+#    kubectl get pods -n ingress-nginx
+#
+# 2. 安装 cert-manager（自动管理 TLS 证书）：
+#    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+#
+#    # 验证安装
+#    kubectl get pods -n cert-manager
+#
+# 3. 创建 Ingress：
+#    kubectl apply -f ingress.yaml
+#
+# 4. 查看 Ingress：
+#    kubectl get ingress
+#    kubectl describe ingress fastapi-ingress
+#
+# 5. 获取访问地址：
+#    # 如果是 Minikube：
+#    minikube ip
+#    # 然后配置 /etc/hosts：
+#    # <minikube-ip> fastapi.example.com
+#
+#    # 如果有域名，添加 A 记录指向 Ingress IP
+#
+# 6. 测试访问：
+#    curl http://fastapi.example.com/api/health
+#    curl https://fastapi.example.com/api/health  # HTTPS
+#
+# 7. 删除 Ingress：
+#    kubectl delete ingress fastapi-ingress
+#
+# ========================================
+# 域名配置
+# ========================================
+#
+# 1. 开发环境（没有域名）：
+#    # 配置 /etc/hosts（Linux/Mac）或 C:\Windows\System32\drivers\etc\hosts（Windows）
+#    # 格式：<IP> <域名>
+#    192.168.99.100 fastapi.example.com
+#
+# 2. 生产环境（有域名）：
+#    # 在域名服务商处添加 A 记录
+#    # 记录类型：A
+#    # 主机记录：fastapi（或 @ 表示根域名）
+#    # 记录值：<Ingress IP 或 LoadBalancer IP>
+#    # TTL：600（或默认）
+#
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. 安全：
+#    - 始终使用 HTTPS（TLS）
+#    - 自动管理证书（cert-manager）
+#    - 限制访问来源（IP 白名单）
+#    - 配置速率限制（防止 DDoS）
+#
+# 2. 性能：
+#    - 启用 HTTP/2
+#    - 配置合适的超时时间
+#    - 启用 gzip 压缩
+#    - 使用 CDN（如 Cloudflare）
+#
+# 3. 监控：
+#    - 监控 Ingress 日志
+#    - 监控请求延迟和错误率
+#    - 配置告警规则
+#
+# 4. 高可用：
+#    - Ingress Controller 多副本
+#    - 使用健康检查
+#    - 配置自动扩缩容
+#
+# ========================================

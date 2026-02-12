@@ -189,9 +189,9 @@ study/level4/
 │   ├── 04_monitoring.py
 │   └── 05_resilience.py
 └── exercises/                   # 练习题
-    ├── 01_cache_exercises.md
-    ├── 02_mq_exercises.md
-    └── 03_resilience_exercises.md
+    ├── 01_basic_exercises.md       # 基础练习
+    ├── 02_intermediate_exercises.md # 进阶练习
+    └── 03_challenge_projects.md     # 综合项目
 ```
 
 ## 🔗 与 Level 3 的关系

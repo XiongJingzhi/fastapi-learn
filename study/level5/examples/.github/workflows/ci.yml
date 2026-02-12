@@ -1,0 +1,469 @@
+# ========================================
+# GitHub Actions CI/CD 工作流
+# ========================================
+# 说明：自动化测试、构建、部署流程
+# 功能：
+# 1. 代码检查（Lint, Type Check）
+# 2. 自动化测试
+# 3. Docker 镜像构建和推送
+# 4. 自动部署到 Kubernetes
+# ========================================
+
+name: CI/CD Pipeline
+
+# ----------------------------------------
+# 触发条件
+# ----------------------------------------
+on:
+  # Push 到 main 或 develop 分支时触发
+  push:
+    branches:
+      - main
+      - develop
+    # 可选：仅在特定路径变更时触发
+    # paths:
+    #   - 'app/**'
+    #   - 'tests/**'
+    #   - 'Dockerfile'
+    #   - '.github/workflows/ci.yml'
+
+  # Pull Request 时触发
+  pull_request:
+    branches:
+      - main
+      - develop
+
+  # 手动触发（在 GitHub Actions 页面）
+  workflow_dispatch:
+
+  # 定时执行（每天凌晨 2 点）
+  # schedule:
+  #   - cron: '0 2 * * *'
+
+# ----------------------------------------
+# 环境变量
+# ----------------------------------------
+env:
+  # Python 版本
+  PYTHON_VERSION: '3.11'
+  # Docker 镜像名称
+  IMAGE_NAME: fastapi-app
+  # Docker 镜像标签
+  IMAGE_TAG: ${{ github.sha }}
+  # 容器仓库（GitHub Packages, Docker Hub, 或私有仓库）
+  # REGISTRY: ghcr.io  # GitHub Container Registry
+  # REGISTRY: docker.io  # Docker Hub
+  REGISTRY: ghcr.io
+
+# ----------------------------------------
+# 权限
+# ----------------------------------------
+permissions:
+  contents: read
+  # 用来推送镜像到 GitHub Container Registry
+  packages: write
+
+# ----------------------------------------
+# 任务（Jobs）
+# ----------------------------------------
+jobs:
+  # ========================================
+  # 任务 1: 代码质量检查
+  # ========================================
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------------------
+      # 步骤 1: 检出代码
+      # ----------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------
+      # 步骤 2: 设置 Python 环境
+      # ----------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'  # 缓存 pip 依赖
+
+      # ----------------------------------------
+      # 步骤 3: 安装依赖
+      # ----------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy pytest pytest-asyncio httpx
+          pip install -r requirements.txt
+
+      # ----------------------------------------
+      # 步骤 4: 代码格式检查（Ruff）
+      # ----------------------------------------
+      - name: Run Ruff linter
+        run: |
+          ruff check . --output-format=github
+          # 或者只检查，不自动修复
+          # ruff check .
+
+      # ----------------------------------------
+      # 步骤 5: 类型检查（Mypy）
+      # ----------------------------------------
+      - name: Run Mypy type checker
+        run: |
+          mypy app/ --ignore-missing-imports
+        continue-on-error: true  # 类型检查不阻止后续步骤
+
+      # ----------------------------------------
+      # 步骤 6: 安全扫描（Bandit）
+      # ----------------------------------------
+      - name: Run Bandit security linter
+        run: |
+          pip install bandit[toml]
+          bandit -r app/ -f json -o bandit-report.json || true
+        continue-on-error: true
+
+      # ----------------------------------------
+      # 步骤 7: 依赖漏洞扫描（Safety）
+      # ----------------------------------------
+      - name: Check dependencies for vulnerabilities
+        run: |
+          pip install safety
+          safety check --json --output safety-report.json || true
+        continue-on-error: true
+
+  # ========================================
+  # 任务 2: 自动化测试
+  # ========================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    # 需要在 lint 通过后才运行
+    needs: lint
+
+    strategy:
+      matrix:
+        # 多个 Python 版本测试
+        python-version: ['3.10', '3.11', '3.12']
+      # 失败后继续运行其他任务
+      fail-fast: false
+
+    steps:
+      # ----------------------------------------
+      # 步骤 1: 检出代码
+      # ----------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------
+      # 步骤 2: 设置 Python 环境
+      # ----------------------------------------
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      # ----------------------------------------
+      # 步骤 3: 安装依赖
+      # ----------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov httpx
+          pip install -r requirements.txt
+
+      # ----------------------------------------
+      # 步骤 4: 运行测试（带覆盖率）
+      # ----------------------------------------
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml \
+            -v
+
+      # ----------------------------------------
+      # 步骤 5: 上传测试覆盖率到 Codecov
+      # ----------------------------------------
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false  # 覆盖率不达标不阻止 CI
+
+      # ----------------------------------------
+      # 步骤 6: 上传测试报告（作为构建产物）
+      # ----------------------------------------
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()  # 无论测试成功还是失败都上传
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            test-results.xml
+            htmlcov/
+
+  # ========================================
+  # 任务 3: 构建 Docker 镜像
+  # ========================================
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    # 需要在测试通过后才运行
+    needs: test
+
+    steps:
+      # ----------------------------------------
+      # 步骤 1: 检出代码
+      # ----------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------
+      # 步骤 2: 设置 Docker Buildx（支持多平台构建）
+      # ----------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ----------------------------------------
+      # 步骤 3: 登录到容器仓库
+      # ----------------------------------------
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}  # GitHub 用户名
+          password: ${{ secrets.GITHUB_TOKEN }}  # GitHub 自动提供的 Token
+
+      # ----------------------------------------
+      # 步骤 4: 提取镜像元数据（标签、标签等）
+      # ----------------------------------------
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # 分支名称（如 develop, main）
+            type=ref,event=branch
+            # Pull Request 编号
+            type=ref,event=pr
+            # Semver 版本（如 v1.0.0）
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # SHA 短哈希（如 abc1234）
+            type=sha,prefix={{branch}}-,format=short
+            # 最新标签（仅 main 分支）
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # ----------------------------------------
+      # 步骤 5: 构建并推送 Docker 镜像
+      # ----------------------------------------
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          # 多平台构建（linux/amd64, linux/arm64）
+          platforms: linux/amd64,linux/arm64
+          push: true  # 推送镜像
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha  # 从 GitHub Actions 缓存
+          cache-to: type=gha,mode=max  # 缓存到 GitHub Actions
+
+      # ----------------------------------------
+      # 步骤 6: 镜像漏洞扫描（Trivy）
+      # ----------------------------------------
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      # ----------------------------------------
+      # 步骤 7: 上传扫描结果到 GitHub Security
+      # ----------------------------------------
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ========================================
+  # 任务 4: 部署到 Kubernetes
+  # ========================================
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    # 需要在构建成功后才运行
+    needs: build
+    # 仅在 main 分支推送时部署（PR 不部署）
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    # 环境（需要先在 GitHub Settings 中配置）
+    environment:
+      name: production
+      url: https://fastapi.example.com
+
+    steps:
+      # ----------------------------------------
+      # 步骤 1: 检出代码
+      # ----------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------
+      # 步骤 2: 设置 kubectl
+      # ----------------------------------------
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      # ----------------------------------------
+      # 步骤 3: 配置 Kubernetes 访问
+      # ----------------------------------------
+      - name: Configure Kubernetes access
+        run: |
+          # 从 GitHub Secrets 读取 kubeconfig
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+
+      # ----------------------------------------
+      # 步骤 4: 更新 Deployment 中的镜像
+      # ----------------------------------------
+      - name: Update Kubernetes Deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          # 更新镜像
+          kubectl set image deployment/fastapi-app \
+            fastapi-app=${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n fastapi-app
+
+          # 等待滚动更新完成
+          kubectl rollout status deployment/fastapi-app -n fastapi-app
+
+          # 获取新的 Pod 状态
+          kubectl get pods -n fastapi-app
+
+      # ----------------------------------------
+      # 步骤 5: 验证部署
+      # ----------------------------------------
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          # 等待 Pod 就绪
+          kubectl wait --for=condition=ready pod -l app=fastapi-app -n fastapi-app --timeout=300s
+
+          # 健康检查
+          kubectl get endpoints fastapi-service -n fastapi-app
+
+      # ----------------------------------------
+      # 步骤 6: 回滚（如果部署失败）
+      # ----------------------------------------
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          echo "Deployment failed, rolling back..."
+          kubectl rollout undo deployment/fastapi-app -n fastapi-app
+
+      # ----------------------------------------
+      # 步骤 7: 通知（Slack, Email 等）
+      # ----------------------------------------
+      - name: Send notification
+        if: always()  # 无论成功还是失败都通知
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deploy to Kubernetes ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+# ========================================
+# 环境变量和 Secrets 配置
+# ========================================
+#
+# 在 GitHub Repository Settings 中配置以下 Secrets：
+#
+# 1. KUBECONFIG:
+#    - Kubernetes 集群的 kubeconfig 文件（base64 编码）
+#    - 生成方式：cat kubeconfig.yaml | base64 -w 0
+#
+# 2. SLACK_WEBHOOK_URL:
+#    - Slack Webhook URL（用于通知）
+#    - 在 Slack App 中创建 Incoming Webhook
+#
+# 3. CODECOV_TOKEN（可选）:
+#    - Codecov 上传 token（如果使用 Codecov）
+#
+# 4. 其他环境特定的 Secrets：
+#    - DATABASE_URL
+#    - SECRET_KEY
+#    - API_KEY
+#    等等
+#
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 推送代码到 GitHub：
+#    git push origin main
+#
+# 2. 查看 CI/CD 运行状态：
+#    - GitHub → Repository → Actions
+#
+# 3. 查看部署状态：
+#    kubectl get deployments -n fastapi-app
+#    kubectl get pods -n fastapi-app
+#
+# 4. 查看日志：
+#    kubectl logs -l app=fastapi-app -n fastapi-app --all-containers=true
+#
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. 多环境部署：
+#    - 开发环境：自动部署（develop 分支）
+#    - 预发环境：手动触发
+#    - 生产环境：审批后部署
+#
+# 2. 分支策略：
+#    - main: 生产环境
+#    - develop: 开发环境
+#    - feature/*: 功能分支（只测试，不部署）
+#
+# 3. 密钥管理：
+#    - 使用 GitHub Secrets 存储敏感信息
+#    - 不要在代码中硬编码密钥
+#    - 定期轮换密钥
+#
+# 4. 安全：
+#    - 使用 GPG 签名提交
+#    - 配置分支保护规则
+#    - 要求 PR 审查
+#    - 自动扫描漏洞
+#
+# 5. 监控：
+#    - 集成 Prometheus 和 Grafana
+#    - 配置告警规则
+#    - 追踪部署成功率
+#
+# ========================================

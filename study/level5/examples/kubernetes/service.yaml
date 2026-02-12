@@ -1,0 +1,195 @@
+# ========================================
+# Kubernetes Service 配置
+# ========================================
+# 说明：为 FastAPI 应用创建一个稳定的网络端点
+# 功能：
+# 1. 负载均衡（在多个 Pod 之间分发流量）
+# 2. 服务发现（提供稳定的 DNS 名称）
+# 3. 内部通信（集群内部访问）
+# ========================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service  # Service 名称
+  labels:
+    app: fastapi-app
+spec:
+  type: ClusterIP  # Service 类型（默认）
+  # ----------------------------------------
+  # Service 类型说明
+  # ----------------------------------------
+  # 1. ClusterIP（默认）:
+  #    - 仅集群内部可访问
+  #    - 适用于微服务间通信
+  #    - 最安全
+  #
+  # 2. NodePort:
+  #    - 通过 <NodeIP>:<NodePort> 访问
+  #    - 适用于开发测试
+  #    - 不推荐用于生产环境
+  #
+  # 3. LoadBalancer:
+  #    - 通过云提供商的负载均衡器访问
+  #    - 适用于生产环境
+  #    - 需要云提供商支持（AWS ELB, GCP LB, Azure LB）
+  #
+  # 4. ExternalName:
+  #    - 映射到外部 DNS 名称
+  #    - 适用于访问外部服务
+  # ----------------------------------------
+
+  # 选择器（选择要暴露的 Pod）
+  selector:
+    app: fastapi-app
+
+  # 端口配置
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80        # Service 端口（集群内访问端口）
+    targetPort: 8000  # Pod 目标端口（容器端口）
+    # nodePort: 30080  # NodePort 类型时使用（30000-32767）
+
+  # 会话亲和性（可选）
+  # sessionAffinity: ClientIP  # 同一客户端的请求发送到同一个 Pod
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 10800  # 3小时
+
+# ========================================
+# Service 类型的完整示例
+# ========================================
+
+# ----------------------------------------
+# 示例 1: NodePort Service
+# ----------------------------------------
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: fastapi-service-nodeport
+# spec:
+#   type: NodePort
+#   selector:
+#     app: fastapi-app
+#   ports:
+#   - name: http
+#     protocol: TCP
+#     port: 80
+#     targetPort: 8000
+#     nodePort: 30080  # 必须在 30000-32767 之间
+#
+# 使用方式：http://<任何NodeIP>:30080
+
+# ----------------------------------------
+# 示例 2: LoadBalancer Service
+# ----------------------------------------
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: fastapi-service-lb
+#   annotations:
+#     # AWS ELB 配置
+#     service.beta.kubernetes.io/aws-load-balancer-type: "nlb"  # Network Load Balancer
+#     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:..."
+#     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     app: fastapi-app
+#   ports:
+#   - name: http
+#     protocol: TCP
+#     port: 80
+#     targetPort: 8000
+#   - name: https
+#     protocol: TCP
+#     port: 443
+#     targetPort: 8000
+#
+# 使用方式：http://<LoadBalancerIP>
+
+# ----------------------------------------
+# 示例 3: Headless Service（用于 StatefulSet）
+# ----------------------------------------
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: fastapi-service-headless
+# spec:
+#   clusterIP: None  # 不分配 ClusterIP
+#   selector:
+#     app: fastapi-app
+#   ports:
+#   - name: http
+#     port: 80
+#     targetPort: 8000
+#
+# 使用方式：直接连接到 Pod（通过 DNS）
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 创建 Service：
+#    kubectl apply -f service.yaml
+#
+# 2. 查看 Service：
+#    kubectl get services
+#    kubectl describe service fastapi-service
+#
+# 3. 获取 Service URL：
+#    kubectl get service fastapi-service
+#    # 如果是 Minikube：
+#    minikube service fastapi-service --url
+#
+# 4. 在集群内访问：
+#    # 通过 DNS 名称访问（推荐）
+#    curl http://fastapi-service.default.svc.cluster.local
+#    # 或简写为：
+#    curl http://fastapi-service
+#
+# 5. 删除 Service：
+#    kubectl delete service fastapi-service
+#
+# ========================================
+# 服务发现
+# ========================================
+#
+# Kubernetes 为每个 Service 创建 DNS 记录：
+#
+# 1. Service 的 DNS 名称：
+#    <service-name>.<namespace>.svc.cluster.local
+#    例如：fastapi-service.default.svc.cluster.local
+#
+# 2. Pod 的 DNS 名称（Headless Service）：
+#    <pod-ip-address>.<service-name>.<namespace>.svc.cluster.local
+#
+# 3. 在同一 namespace 中可以简写：
+#    http://fastapi-service
+#
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. Service 类型选择：
+#    - 内部微服务通信：使用 ClusterIP（默认）
+#    - 暴露外部服务：使用 Ingress（推荐）
+#    - 暴露外部服务：使用 LoadBalancer（云环境）
+#    - 开发测试：使用 NodePort
+#
+# 2. 端口配置：
+#    - 使用命名端口（提高可读性）
+#    - 遵循约定（HTTP:80, HTTPS:443）
+#    - 避免使用 NodePort（除非必要）
+#
+# 3. 负载均衡：
+#    - 默认使用随机负载均衡
+#    - 需要会话保持时，配置 sessionAffinity
+#
+# 4. 安全：
+#    - 不要随意暴露 NodePort
+#    - 使用 NetworkPolicy 限制访问
+#    - 生产环境使用 Ingress + TLS
+#
+# ========================================

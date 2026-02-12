@@ -1,0 +1,273 @@
+# ========================================
+# Docker Compose 配置文件
+# ========================================
+# 说明：本地开发环境的多容器编排配置
+# 包含服务：
+# 1. FastAPI 应用
+# 2. PostgreSQL 数据库
+# 3. Redis 缓存
+# 4. Nginx 反向代理（可选）
+# ========================================
+
+version: '3.8'
+
+# 定义服务
+services:
+  # ----------------------------------------
+  # FastAPI 应用服务
+  # ----------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime  # 使用 Dockerfile 中的 runtime 阶段
+    container_name: fastapi-app
+    ports:
+      - "${APP_PORT:-8000}:8000"  # 主机端口:容器端口，默认 8000
+    environment:
+      # 数据库配置
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppass}@db:5432/${POSTGRES_DB:-appdb}
+      # Redis 配置
+      - REDIS_URL=redis://redis:6379/0
+      # 应用配置
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
+      # 日志级别
+      - LOG_LEVEL=debug
+    volumes:
+      # 代码热重载（仅开发环境）
+      - ./app:/app/app:ro  # ro = readonly
+      # 日志持久化
+      - ./logs:/app/logs
+      # 静态文件（如果有）
+      - ./static:/app/static:ro
+    depends_on:
+      db:
+        condition: service_healthy  # 等待 db 健康检查通过
+      redis:
+        condition: service_started  # 等待 redis 启动
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # 资源限制（防止容器占用过多资源）
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # ----------------------------------------
+  # PostgreSQL 数据库
+  # ----------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: fastapi-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-appuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-apppass}
+      - POSTGRES_DB=${POSTGRES_DB:-appdb}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      # 数据持久化（即使容器删除，数据也不会丢失）
+      - postgres-data:/var/lib/postgresql/data
+      # 初始化脚本（可选）
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"  # 暴露端口（仅开发环境，生产环境不要暴露）
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ----------------------------------------
+  # Redis 缓存
+  # ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fastapi-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redispass}
+    volumes:
+      # Redis 数据持久化
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"  # 暴露端口（仅开发环境）
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ----------------------------------------
+  # Nginx 反向代理（可选）
+  # ----------------------------------------
+  # 使用场景：
+  # - SSL 终止
+  # - 静态文件服务
+  # - 负载均衡
+  # - 请求缓存
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: fastapi-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #     - ./static:/var/www/static:ro
+  #   depends_on:
+  #     - app
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+
+  # ----------------------------------------
+  # pgAdmin（数据库管理工具，仅开发环境）
+  # ----------------------------------------
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: fastapi-pgadmin
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@example.com}
+  #     - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+
+  # ----------------------------------------
+  # Redis Commander（Redis 管理工具，仅开发环境）
+  # ----------------------------------------
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: fastapi-redis-commander
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-redispass}
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+
+# ----------------------------------------
+# 网络定义
+# ----------------------------------------
+networks:
+  app-network:
+    driver: bridge  # 桥接网络（容器间可以互相通信）
+
+# ----------------------------------------
+# 数据卷定义（持久化数据）
+# ----------------------------------------
+volumes:
+  postgres-data:
+    driver: local  # 本地存储
+  redis-data:
+    driver: local
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 准备环境变量文件：
+#    cp .env.example .env
+#    # 编辑 .env 文件，配置你的变量
+#
+# 2. 启动所有服务：
+#    docker-compose up -d
+#
+# 3. 查看服务状态：
+#    docker-compose ps
+#
+# 4. 查看日志：
+#    docker-compose logs -f app
+#    docker-compose logs -f  # 查看所有服务
+#
+# 5. 停止服务：
+#    docker-compose stop
+#
+# 6. 停止并删除容器：
+#    docker-compose down
+#
+# 7. 停止并删除容器、网络、数据卷：
+#    docker-compose down -v  # 注意：会删除所有数据
+#
+# 8. 重新构建镜像：
+#    docker-compose build
+#
+# 9. 重启某个服务：
+#    docker-compose restart app
+#
+# 10. 进入容器：
+#     docker-compose exec app /bin/bash
+#     docker-compose exec db psql -U appuser -d appdb
+#
+# ========================================
+# 生产环境注意事项
+# ========================================
+#
+# 1. 不要暴露数据库端口：
+#    - 删除 db 和 redis 的 ports 配置
+#    - 数据库只能在内部网络访问
+#
+# 2. 使用环境变量管理敏感信息：
+#    - 使用 .env 文件（不要提交到代码库）
+#    - 使用 Docker Secrets（Swarm 模式）
+#    - 使用 Kubernetes Secrets
+#
+# 3. 资源限制：
+#    - 根据实际负载调整 CPU 和内存限制
+#    - 监控资源使用情况
+#
+# 4. 日志管理：
+#    - 配置日志轮转
+#    - 使用集中式日志系统（ELK, Loki）
+#
+# 5. 备份策略：
+#    - 定期备份数据库
+#    - 备份 Redis 数据（如果需要）
+#
+# 6. 监控和告警：
+#    - 使用 Prometheus + Grafana
+#    - 配置健康检查
+#    - 设置告警规则
+#
+# ========================================

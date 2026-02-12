@@ -1,0 +1,268 @@
+# ========================================
+# Kubernetes Deployment 配置
+# ========================================
+# 说明：FastAPI 应用的 Kubernetes 部署配置
+# 功能：
+# 1. 声明式管理应用
+# 2. 滚动更新
+# 3. 自动故障恢复
+# 4. 水平扩缩容
+# ========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app  # Deployment 名称
+  labels:
+    app: fastapi-app
+    version: v1  # 版本标签（用于金丝雀发布）
+spec:
+  # 副本数（Pod 数量）
+  replicas: 3  # 生产环境建议至少 3 个副本（高可用）
+
+  # 部署策略
+  strategy:
+    type: RollingUpdate  # 滚动更新策略
+    rollingUpdate:
+      maxSurge: 1        # 更新时最多可以多出的 Pod 数量
+      maxUnavailable: 1  # 更新时最多允许不可用的 Pod 数量
+
+  # 选择器（选择要管理的 Pod）
+  selector:
+    matchLabels:
+      app: fastapi-app
+
+  # Pod 模板（定义 Pod 的规格）
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+        version: v1
+    spec:
+      # ----------------------------------------
+      # 容器配置
+      # ----------------------------------------
+      containers:
+      - name: fastapi-app
+        image: fastapi-app:latest  # 镜像名称
+        imagePullPolicy: IfNotPresent  # 镜像拉取策略：Always, Never, IfNotPresent
+
+        # 端口配置
+        ports:
+        - name: http
+          containerPort: 8000  # 容器内端口
+          protocol: TCP
+
+        # ----------------------------------------
+        # 环境变量（从 ConfigMap 读取）
+        # ----------------------------------------
+        envFrom:
+        - configMapRef:
+            name: fastapi-config  # 引用 ConfigMap
+
+        # ----------------------------------------
+        # 环境变量（从 Secret 读取敏感信息）
+        # ----------------------------------------
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: fastapi-secret
+              key: database-url
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fastapi-secret
+              key: secret-key
+
+        # ----------------------------------------
+        # 资源限制（防止容器占用过多资源）
+        # ----------------------------------------
+        resources:
+          requests:  # 最小资源保证
+            cpu: 100m      # 100 millicores (0.1 CPU)
+            memory: 128Mi  # 128 MiB
+          limits:    # 最大资源限制
+            cpu: 500m      # 500 millicores (0.5 CPU)
+            memory: 512Mi  # 512 MiB
+
+        # ----------------------------------------
+        # 健康检查（Liveness Probe）
+        # 说明：探测容器是否还在运行
+        # 如果失败，K8s 会重启容器
+        # ----------------------------------------
+        livenessProbe:
+          httpGet:
+            path: /health  # 健康检查路径
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30   # 容器启动后等待多久开始检查
+          periodSeconds: 10        # 检查间隔（秒）
+          timeoutSeconds: 5         # 检查超时时间（秒）
+          successThreshold: 1      # 连续成功多少次才算成功
+          failureThreshold: 3      # 连续失败多少次才算失败（会重启容器）
+
+        # ----------------------------------------
+        # 就绪检查（Readiness Probe）
+        # 说明：探测容器是否准备好接收流量
+        # 如果失败，Pod 会被从 Service 中移除
+        # ----------------------------------------
+        readinessProbe:
+          httpGet:
+            path: /health  # 就绪检查路径（通常与 liveness 相同）
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10   # 容器启动后等待多久开始检查
+          periodSeconds: 5          # 检查间隔（秒）
+          timeoutSeconds: 3         # 检查超时时间（秒）
+          successThreshold: 1       # 连续成功多少次才算成功
+          failureThreshold: 3       # 连续失败多少次才算失败
+
+        # ----------------------------------------
+        # 启动检查（Startup Probe）
+        # 说明：探测容器是否启动成功
+        # 对于启动慢的应用非常有用
+        # ----------------------------------------
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30     # 最多允许 30 次失败（150秒）
+
+        # ----------------------------------------
+        # 优雅关闭（Graceful Shutdown）
+        # ----------------------------------------
+        lifecycle:
+          preStop:
+            exec:
+              # 在容器终止前执行
+              # 1. 通知应用即将关闭
+              # 2. 等待请求处理完成
+              command: ["/bin/sh", "-c", "sleep 10"]
+
+      # ----------------------------------------
+      # 优雅终止期
+      # 说明：给 Pod 时间完成清理工作
+      # ----------------------------------------
+      terminationGracePeriodSeconds: 30  # 30秒优雅终止期
+
+      # ----------------------------------------
+      # 亲和性（Affinity）
+      # 说明：控制 Pod 调度到哪些节点
+      # ----------------------------------------
+      # affinity:
+      #   # Pod 亲和性（Pod 和 Pod 的关系）
+      #   podAffinity:
+      #     # 尽量和其他 fastapi-app Pod 在同一节点（提高性能）
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchLabels:
+      #             app: fastapi-app
+      #         topologyKey: kubernetes.io/hostname
+      #
+      #   # Pod 反亲和性（Pod 尽量分散到不同节点，提高可用性）
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchLabels:
+      #             app: fastapi-app
+      #         topologyKey: kubernetes.io/hostname
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 部署应用：
+#    kubectl apply -f deployment.yaml
+#
+# 2. 查看部署状态：
+#    kubectl get deployments
+#    kubectl get pods
+#
+# 3. 查看部署详情：
+#    kubectl describe deployment fastapi-app
+#
+# 4. 查看日志：
+#    kubectl logs -l app=fastapi-app --all-containers=true
+#    kubectl logs -f <pod-name>
+#
+# 5. 扩缩容（手动）：
+#    kubectl scale deployment fastapi-app --replicas=5
+#
+# 6. 更新镜像：
+#    kubectl set image deployment/fastapi-app fastapi-app=fastapi-app:v2
+#
+# 7. 回滚到上一个版本：
+#    kubectl rollout undo deployment/fastapi-app
+#
+# 8. 回滚到指定版本：
+#    kubectl rollout history deployment/fastapi-app  # 查看历史
+#    kubectl rollout undo deployment/fastapi-app --to-revision=2
+#
+# 9. 查看滚动更新状态：
+#    kubectl rollout status deployment/fastapi-app
+#
+# 10. 删除部署：
+#     kubectl delete deployment fastapi-app
+#
+# ========================================
+# 调试技巧
+# ========================================
+#
+# 1. 进入 Pod 调试：
+#    kubectl exec -it <pod-name> -- /bin/bash
+#
+# 2. 端口转发（本地访问 Pod）：
+#    kubectl port-forward <pod-name> 8000:8000
+#
+# 3. 查看事件（排查问题）：
+#    kubectl get events --sort-by=.metadata.creationTimestamp
+#
+# 4. 查看 Pod 的 YAML 配置：
+#    kubectl get pod <pod-name> -o yaml
+#
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. 副本数：
+#    - 生产环境至少 3 个副本（高可用）
+#    - 根据负载调整副本数
+#    - 使用 HPA（Horizontal Pod Autoscaler）自动扩缩容
+#
+# 2. 资源限制：
+#    - 必须设置 requests 和 limits
+#    - requests 用于调度决策
+#    - limits 用于资源隔离
+#    - 根据实际监控数据调整
+#
+# 3. 健康检查：
+#    - /health 端点必须实现（返回 200）
+#    - 设置合理的超时和重试次数
+#    - 区分 liveness 和 readiness
+#
+# 4. 更新策略：
+#    - 使用 RollingUpdate 实现零停机
+#    - 设置合理的 maxSurge 和 maxUnavailable
+#    - 测试更新流程
+#
+# 5. 镜像管理：
+#    - 使用具体版本标签（不要使用 latest）
+#    - 定期更新基础镜像（安全补丁）
+#    - 扫描镜像漏洞
+#
+# 6. 监控和日志：
+#    - 使用 Prometheus 监控
+#    - 使用集中式日志系统
+#    - 配置告警规则
+#
+# ========================================
