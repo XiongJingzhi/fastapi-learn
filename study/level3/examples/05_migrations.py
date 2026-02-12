@@ -144,7 +144,7 @@ def run_migrations_offline() -> None:
     """
     离线模式运行迁移
 
-    使用场景: 不需要连接数据库，生成 SQL 脚本
+    使用场景: 不需要连接数据库, 生成 SQL 脚本
     """
     url = get_database_url()
     context.configure(
@@ -174,10 +174,8 @@ async def run_async_migrations():
     """
     异步模式运行迁移 (推荐)
 
-    ══════════════════════════════════════════════════════════════════════════
     注意: Alembic 默认是同步的
     使用 AsyncEngine 需要特殊配置
-    ══════════════════════════════════════════════════════════════════════════
     """
     from sqlalchemy.ext.asyncio import async_engine_from_config
 
