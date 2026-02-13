@@ -33,6 +33,14 @@ app = FastAPI(
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# WARNING: 以下 users_db / orders_db 使用进程内共享可变状态，仅用于教学演示。
+# WARNING: 这会导致并发请求下的数据竞争、跨请求污染、重启丢失，生产环境必须使用真实数据库。
+users_db = [
+    {"id": 1, "name": "张三", "email": "zhangsan@example.com", "password": "hash1", "balance": 100.0},
+    {"id": 2, "name": "李四", "email": "lisi@example.com", "password": "hash2", "balance": 50.0},
+]
+orders_db: List[Dict[str, Any]] = []
+
 
 # ==========================================
 # 第一部分：领域异常定义
@@ -286,13 +294,8 @@ class MockDatabase:
     """模拟数据库"""
 
     def __init__(self):
-        self.users = [
-            {"id": 1, "name": "张三", "email": "zhangsan@example.com", "password": "hash1", "balance": 100.0},
-            {"id": 2, "name": "李四", "email": "lisi@example.com", "password": "hash2", "balance": 50.0},
-        ]
-        self.orders = []
-        self.next_user_id = 3
-        self.next_order_id = 1
+        self.users = users_db
+        self.orders = orders_db
 
     def find_user_by_id(self, user_id: int) -> Optional[dict]:
         """根据 ID 查找用户"""
@@ -315,14 +318,13 @@ class MockDatabase:
     def create_user(self, user_data: dict) -> dict:
         """创建用户"""
         new_user = {
-            "id": self.next_user_id,
+            "id": max((user["id"] for user in self.users), default=0) + 1,
             "name": user_data["name"],
             "email": user_data["email"],
             "password": f"hash_{user_data['password']}",  # 模拟密码哈希
             "balance": 0.0
         }
         self.users.append(new_user)
-        self.next_user_id += 1
         return new_user
 
     def update_balance(self, user_id: int, amount: float) -> dict:
@@ -335,13 +337,12 @@ class MockDatabase:
     def create_order(self, order_data: dict) -> dict:
         """创建订单"""
         order = {
-            "id": self.next_order_id,
+            "id": max((existing_order["id"] for existing_order in self.orders), default=0) + 1,
             **order_data,
             "status": "pending",
             "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         self.orders.append(order)
-        self.next_order_id += 1
         return order
 
 
