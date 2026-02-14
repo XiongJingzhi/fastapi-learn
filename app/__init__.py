@@ -1,3 +1,0 @@
-"""
-FastAPI Learning App Package
-"""
