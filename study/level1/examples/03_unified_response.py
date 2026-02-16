@@ -12,7 +12,7 @@ Level 1 - Example 03: 统一响应格式 (Unified Response Format)
 """
 
 from fastapi import FastAPI, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Generic, TypeVar, Optional, List
 import time
 
@@ -38,8 +38,8 @@ class ApiResponse(BaseModel, Generic[T]):
     data: Optional[T] = Field(None, description="响应数据")
     timestamp: int = Field(default_factory=lambda: int(time.time()), description="时间戳")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "code": 200,
                 "message": "操作成功",
@@ -47,6 +47,7 @@ class ApiResponse(BaseModel, Generic[T]):
                 "timestamp": 1736784000
             }
         }
+    )
 
 
 class PaginationMeta(BaseModel):

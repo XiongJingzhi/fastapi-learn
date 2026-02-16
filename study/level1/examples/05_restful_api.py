@@ -17,7 +17,7 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, status, Query, Path
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -96,9 +96,11 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
 
-    class Config:
-        # 允许部分更新
-        extra = "forbid"
+    # Pydantic v2 语法：使用 model_config
+    model_config = ConfigDict(
+        extra='forbid',  # 禁止额外字段
+        from_attributes=True  # 允许从 ORM 对象创建
+    )
 
 
 class UserInDB(UserBase):

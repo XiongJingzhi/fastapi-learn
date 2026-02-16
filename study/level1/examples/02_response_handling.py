@@ -302,7 +302,7 @@ async def create_user(user: UserBase):
     new_user = UserInDB(
         id=len(fake_users_db) + 1,
         password_hash="new_hashed_password",
-        **user.dict(),
+        **user.model_dump(),  # Pydantic v2 语法
         created_at=datetime.now()
     )
 

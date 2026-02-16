@@ -13,7 +13,7 @@ Level 1 - Example 04: 错误处理 (Error Handling)
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
@@ -312,7 +312,8 @@ class SpecialUserCreate(BaseModel):
 
     username: str
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_must_contain_number(cls, v):
         """用户名必须包含数字"""
         if not any(c.isdigit() for c in v):
