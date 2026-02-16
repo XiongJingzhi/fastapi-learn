@@ -11,11 +11,14 @@
     uvicorn study.level1.examples.01_request_validation:app --reload
     访问: http://localhost:8000/docs
 """
+from pytest import console_main
 
 from typing import Optional, List, Set
 from datetime import datetime
-from fastapi import FastAPI, Path, Query, Body, Header, Cookie, HTTPException, status
-from pydantic import BaseModel, Field, field_validator, EmailStr
+from fastapi import FastAPI, Path, Query, Body, Header, Cookie, HTTPException, status, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -23,6 +26,27 @@ app = FastAPI(
     description="演示 Path/Query/Body/Header/Cookie 参数的各种用法",
     version="1.0.0"
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
+    """
+    统一处理请求参数校验错误（Pydantic -> FastAPI）。
+
+    对外返回稳定结构，便于调用方按 code + errors 解析。
+    """
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "code": "VALIDATION_ERROR",
+            "message": "请求参数校验失败",
+            "path": request.url.path,
+            "errors": exc.errors(),
+        },
+    )
 
 
 # ============================================================================
@@ -180,10 +204,8 @@ class ItemResponse(BaseModel):
     price: float
     with_tax: float
     tags: List[str] = []
-
-    class Config:
-        # 允许从 ORM 对象创建
-        from_attributes = True
+    # Pydantic v2 写法（替代 class Config）
+    model_config = ConfigDict(from_attributes=True)
 
 
 @app.post("/items/", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
@@ -215,47 +237,174 @@ async def create_item(item: ItemCreate):
     return item_dict
 
 
-@app.put("/items/{item_id}")
-async def update_item(
-    item_id: int,
-    item: ItemCreate,
-    # 使用 Body 同时接收多个请求体参数
-    user_id: int = Body(
-        ...,
-        embed=True,
-        description="用户ID"
-    ),
-    priority: int = Body(
-        10,
-        ge=1,
-        le=10,
-        description="优先级，1-10"
-    )
+# ============================================================================
+# Body 参数 - 请求体中的 JSON 数据（推荐写法）
+# ============================================================================
+
+class ItemUpdate(BaseModel):
+    """商品更新模型 - 统一的请求结构（推荐）"""
+    name: str = Field(..., min_length=1, max_length=100)
+    price: float = Field(..., gt=0)
+    description: Optional[str] = Field(None, max_length=500)
+    tags: List[str] = Field(default=[])
+
+
+@app.put("/items/{item_id}/recommended")
+async def update_item_recommended(
+    item_id: int = Path(..., gt=0, description="商品ID"),
+    item: ItemUpdate = Body(..., description="商品数据")
 ):
     """
-    Body 参数示例 - 混合使用 Path/Body 参数
+    ✅ 推荐写法：使用统一的 Pydantic 模型
+
+    优点:
+        - 清晰明确，IDE 有完整提示
+        - 自动验证整个请求体
+        - 客户端知道确切的数据结构
+        - 易于维护和扩展
+
+    示例请求体:
+    {
+        "name": "MacBook Pro",
+        "price": 15999.0,
+        "description": "高性能笔记本",
+        "tags": ["电子产品", "电脑"]
+    }
+
+    注意:
+        - item_id 来自 Path 参数
+        - item 是整个请求体（Pydantic 模型）
+    """
+    return {
+        "item_id": item_id,
+        "item": item,
+        "message": "✅ 商品已更新（推荐写法）"
+    }
+
+
+# ============================================================================
+# Body 参数 - 多个参数场景（高级用法）
+# ============================================================================
+
+class ItemUpdateWithMeta(BaseModel):
+    """商品更新模型（包含元数据）"""
+    name: str = Field(..., min_length=1, max_length=100)
+    price: float = Field(..., gt=0)
+    description: Optional[str] = Field(None, max_length=500)
+    tags: List[str] = Field(default=[])
+
+
+class ItemUpdateRequest(BaseModel):
+    """
+    完整的更新请求模型
+
+    当需要同时传递商品数据和元数据时使用
+    """
+    item: ItemUpdateWithMeta
+    user_id: int = Field(..., description="操作用户ID")
+    priority: int = Field(10, ge=1, le=10, description="优先级")
+
+
+@app.put("/items/{item_id}/with-meta")
+async def update_item_with_metadata(
+    item_id: int = Path(..., gt=0),
+    request: ItemUpdateRequest = Body(...)
+):
+    """
+    ✅ 高级场景：商品数据 + 元数据
+
+    当请求体结构复杂时，将其封装为一个完整的模型
+
+    优点:
+        - 清晰的数据结构
+        - 所有验证规则集中定义
+        - 易于版本控制
 
     示例请求体:
     {
         "item": {
             "name": "MacBook Pro",
-            "price": 15999.0
+            "price": 15999.0,
+            "tags": ["电子产品"]
         },
         "user_id": 123,
         "priority": 5
     }
 
-    注意:
-        - item_id 来自 Path
-        - item 来自 Body (使用 embed=True 使其成为嵌套对象)
-        - user_id 和 priority 来自 Body
+    说明:
+        - item_id 来自 URL 路径
+        - request 是完整的请求体模型
+        - user_id 是操作者ID（实际应用中应从 token 获取）
     """
     return {
         "item_id": item_id,
-        "user_id": user_id,
-        "priority": priority,
+        "item": request.item,
+        "user_id": request.user_id,
+        "priority": request.priority,
+        "message": "✅ 商品已更新（高级写法）"
+    }
+
+
+# ============================================================================
+# 实际应用场景：用户认证 + 资源更新（最佳实践示例）
+# ============================================================================
+
+# 模拟：从认证 token 获取当前用户 ID
+async def get_current_user_id() -> int:
+    """
+    依赖函数：从认证 token 获取用户 ID
+
+    实际应用中：
+    - 解析 JWT token
+    - 验证 token 有效性
+    - 返回用户 ID
+    """
+    # 这里只是模拟，返回固定值
+    return 999
+
+
+class ItemUpdate(BaseModel):
+    """简化的更新模型"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    price: Optional[float] = Field(None, gt=0)
+
+
+@app.put("/items/{item_id}/real-world")
+async def update_item_real_world(
+    item_id: int = Path(..., gt=0),
+    item: ItemUpdate = Body(...),
+    current_user_id: int = Depends(get_current_user_id),
+    priority: int = Query(10, ge=1, le=10)
+):
+    """
+    ✅ 生产环境推荐写法
+
+    参数来源:
+        - item_id: Path (URL 路径)
+        - item: Body (请求体 - 商品数据)
+        - current_user_id: Depends (从认证 token 获取)
+        - priority: Query (URL 查询参数)
+
+    示例请求:
+        PUT /items/123?priority=5
+        Headers: Authorization: Bearer <token>
+        Body:
+        {
+            "name": "MacBook Pro",
+            "price": 15999.0
+        }
+
+    优点:
+        - 用户 ID 不由客户端指定（安全！）
+        - 优先级使用 Query 参数（符合 RESTful）
+        - 清晰的职责分离
+    """
+    return {
+        "item_id": item_id,
         "item": item,
-        "message": "商品已更新"
+        "current_user_id": current_user_id,
+        "priority": priority,
+        "message": "✅ 商品已更新（生产环境写法）"
     }
 
 
@@ -570,5 +719,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8000,
-        reload=True
+        # 直接 `python file.py` 运行时不要启用 reload，否则会提示必须传 import string
+        reload=False
     )
