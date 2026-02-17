@@ -784,15 +784,15 @@ async def search_products(
 - 返回当前用户信息
 
 #### 💡 提示
-- 使用 Pydantic 的 `validator` 实现自定义校验
-- 使用 `@root_validator` 实现密码确认校验
+- 使用 Pydantic 的 `field_validator` 实现自定义校验
+- 使用 `@model_validator` 实现密码确认校验
 - 使用 `Header()` 函数从请求头中获取数据
 
 #### ✅ 答案
 
 ```python
 from fastapi import FastAPI, Header, HTTPException, status
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 
 app = FastAPI()
@@ -806,14 +806,16 @@ class UserRegister(BaseModel):
     password: str = Field(..., min_length=8)
     password_confirm: str
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_alphanumeric(cls, v):
         """用户名只能包含字母、数字、下划线"""
         if not re.match(r'^[a-zA-Z0-9_]+$', v):
             raise ValueError('Username can only contain letters, numbers, and underscores')
         return v
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_strength(cls, v):
         """密码必须包含字母和数字"""
         if not any(c.isalpha() for c in v):
@@ -822,14 +824,13 @@ class UserRegister(BaseModel):
             raise ValueError('Password must contain at least one number')
         return v
 
-    @root_validator
-    def passwords_match(cls, values):
+    @model_validator(mode='after')
+    @classmethod
+    def passwords_match(cls, data):
         """密码和确认密码必须一致"""
-        password = values.get('password')
-        password_confirm = values.get('password_confirm')
-        if password != password_confirm:
+        if data.password != data.password_confirm:
             raise ValueError('Passwords do not match')
-        return values
+        return data
 
 class UserLogin(BaseModel):
     """用户登录"""
