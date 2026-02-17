@@ -259,7 +259,7 @@ async def cli_create_user(username: str, email: str):
 # gRPC 接口
 async def grpc_create_user(request, context):
     service = get_user_service()  # 同样的 Service
-    return await service.create_user(UserCreate(**request.dict()))
+    return await service.create_user(UserCreate(**request.model_dump()))
 ```
 
 ---

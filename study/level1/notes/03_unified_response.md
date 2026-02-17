@@ -162,8 +162,8 @@ class ApiResponse(BaseModel, Generic[T]):
     data: Optional[T] = Field(None, description="响应数据")
     timestamp: int = Field(default_factory=lambda: int(time.time()))
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "code": 200,
                 "message": "操作成功",
@@ -171,6 +171,7 @@ class ApiResponse(BaseModel, Generic[T]):
                 "timestamp": 1739184000
             }
         }
+    )
 
 # 分页数据模型
 class PaginatedData(BaseModel, Generic[T]):
@@ -430,8 +431,9 @@ class UserResponse(BaseModel):
     name: str
     email: str
 
-    class Config:
-        from_attributes = True  # 可以从 ORM 对象创建
+    model_config = ConfigDict(
+        from_attributes=True  # 可以从 ORM 对象创建
+    )
 
 @router.get("/users/{id}", response_model=UserResponse)
 async def get_user(id: int):

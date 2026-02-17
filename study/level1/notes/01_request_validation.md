@@ -518,14 +518,14 @@ async def get_items(item_id: int = Query(...)):
 # ⚠️ 潜在问题
 class Item(BaseModel):
     name: str
-    price: float
-    description: str  # 如果前端先发 description，会报错
+    price: float ｜ None
+    description: str
 
 # ✅ 更好的设计
 class Item(BaseModel):
     name: str
-    description: str | None = None  # 可选字段放后面
     price: float
+    description: str | None = None  # 可选字段放后面
 ```
 
 ---

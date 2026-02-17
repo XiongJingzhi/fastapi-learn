@@ -325,7 +325,7 @@ class ItemResponse(ItemBase):
 async def create_item(item: ItemCreate):
     # 1. 创建商品（保存到数据库）
     item_db = ItemInDB(
-        **item.dict(),
+        **item.model_dump(),
         id=1,
         created_at=datetime.now(),
         updated_at=datetime.now()
@@ -525,7 +525,7 @@ app = FastAPI()
 @app.post("/items", status_code=status.HTTP_201_CREATED)
 async def create_item(item: Item):
     # 创建成功，返回 201 状态码
-    return {"id": 1, **item.dict()}
+    return {"id": 1, **item.model_dump()}
 
 @app.get("/items/{item_id}")
 async def get_item(item_id: int):

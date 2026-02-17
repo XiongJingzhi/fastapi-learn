@@ -453,19 +453,21 @@ async def get_users(request: Request):
 ### 4. 输入验证和清理
 
 ```python
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=20)
     email: str
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_alphanumeric(cls, v):
         if not v.isalnum():
             raise ValueError('用户名只能包含字母和数字')
         return v
 
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def email_normalization(cls, v):
         # 清理输入：转小写、去除空格
         return v.strip().lower()

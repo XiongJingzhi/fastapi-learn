@@ -756,7 +756,7 @@ async def create_user(user: UserCreate):
     user_id = await db.insert("INSERT INTO users ...")
     send_welcome_email(user.email)
 
-    return {"id": user_id, **user.dict()}
+    return {"id": user_id, **user.model_dump()}
 
 # ✅ 正确：薄的传输层（只做协议适配）
 @app.post("/users")

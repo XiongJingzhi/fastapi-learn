@@ -50,7 +50,7 @@ async def register_user(username: str, email: str, age: int):
 
 ```python
 # ✅ 有数据验证
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=20)
@@ -148,20 +148,22 @@ class User(BaseModel):
 **validator 就像"特种检查员"**，做更复杂的验证：
 
 ```python
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 class UserCreate(BaseModel):
     username: str
     password: str
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_must_not_contain_space(cls, v):
         """用户名不能包含空格"""
         if ' ' in v:
             raise ValueError('用户名不能包含空格')
         return v
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_must_be_strong(cls, v):
         """密码必须足够强"""
         if len(v) < 8:
@@ -175,7 +177,7 @@ class UserCreate(BaseModel):
 
 **工作原理**：
 1. Pydantic 先做基础类型检查
-2. 然后调用 `@validator` 装饰的函数
+2. 然后调用 `@field_validator` 装饰的函数
 3. 验证失败就抛出 `ValueError`
 
 ---
@@ -185,23 +187,21 @@ class UserCreate(BaseModel):
 **root_validator 就像"最终审核员"**，检查**多个字段之间的关系**：
 
 ```python
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 
 class Payment(BaseModel):
     amount: float
     currency: str
     account_balance: float
 
-    @root_validator
-    def check_sufficient_balance(cls, values):
+    @model_validator(mode='after')
+    @classmethod
+    def check_sufficient_balance(cls, data):
         """检查余额是否充足"""
-        amount = values.get('amount')
-        balance = values.get('account_balance')
-
-        if amount and balance and amount > balance:
+        if data.amount and data.account_balance and data.amount > data.account_balance:
             raise ValueError('余额不足，无法完成支付')
 
-        return values
+        return data
 ```
 
 **使用场景**：
@@ -243,7 +243,7 @@ class Item(BaseModel):
 ### 特殊类型
 
 ```python
-from pydantic import BaseModel, EmailStr, HttpUrl, Field, validator
+from pydantic import BaseModel, EmailStr, HttpUrl, Field, field_validator
 from datetime import datetime
 from decimal import Decimal
 
@@ -353,16 +353,17 @@ class Item(BaseModel):
 user = User(id=1, name="Alice")
 user.name = "Bob"  # 报错！
 
-# ✅ 正确：使用 .dict() 或 .copy()
-user_dict = user.dict()
+# ✅ 正确：使用 .model_dump() 或 .copy()
+user_dict = user.model_dump()
 user_dict["name"] = "Bob"  # 可以修改
 
 # 或者配置模型为可变的
+from pydantic import ConfigDict
+
 class User(BaseModel):
     name: str
 
-    class Config:
-        validate_assignment = True  # 允许修改后重新验证
+    model_config = ConfigDict(validate_assignment=True)  # 允许修改后重新验证
 ```
 
 ### 陷阱 3：忘记处理数据类型转换
@@ -415,36 +416,33 @@ class UserResponse(UserBase):
     created_at: datetime
 ```
 
-### 2. 使用 Config 类配置模型
+### 2. 使用 ConfigDict 配置模型
 
 ```python
+from pydantic import ConfigDict
+
 class User(BaseModel):
     username: str
     email: str
 
-    class Config:
-        # 允许从 ORM 对象创建
-        from_attributes = True
-
-        # 字段别名（使用 camelCase）
-        populate_by_name = True
-
-        # 验证赋值
-        validate_assignment = True
-
-        # 使用枚举值而不是名称
-        use_enum_values = True
+    model_config = ConfigDict(
+        from_attributes=True,        # 允许从 ORM 对象创建
+        populate_by_name=True,       # 字段别名（使用 camelCase）
+        validate_assignment=True,    # 验证赋值
+        use_enum_values=True         # 使用枚举值而不是名称
+    )
 ```
 
 ### 3. 提供有意义的错误信息
 
 ```python
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 class UserCreate(BaseModel):
     password: str = Field(..., min_length=8)
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('密码至少需要8个字符')
@@ -463,7 +461,7 @@ class UserCreate(BaseModel):
 ### 常用导入
 
 ```python
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, root_validator
 from pydantic import EmailStr, HttpUrl, ValidationError
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -485,10 +483,10 @@ except ValidationError as e:
 user = User(id=1, name="Alice")
 
 # 转为字典
-user_dict = user.dict()
+user_dict = user.model_dump()
 
 # 转为 JSON
-user_json = user.json()
+user_json = user.model_dump_json()
 
 # 排除某些字段
 user_dict = user.dict(exclude={"password"})

@@ -229,7 +229,7 @@ async def create_order_cli(product_id: int, quantity: int):
 # gRPC 接口：可以复用
 async def CreateOrder(request, context):
     service = get_order_service()  # 不需要 HTTP
-    result = await service.create_order(OrderCreate(**request.dict()))
+    result = await service.create_order(OrderCreate(**request.model_dump()))
     return OrderResponse(id=result.id, total_price=result.total_price)
 
 # 单元测试：可以直接测试 Service
@@ -415,14 +415,15 @@ async def register(user: UserRegister):
 **高级用法**：
 
 ```python
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, model_validator
 
 class UserCreate(BaseModel):
     username: str
     password: str
     password_confirm: str
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_strength(cls, v):
         """自定义校验：密码必须包含字母和数字"""
         if not any(c.isalpha() for c in v):
@@ -431,12 +432,13 @@ class UserCreate(BaseModel):
             raise ValueError('Password must contain a number')
         return v
 
-    @validator('password_confirm')
-    def passwords_match(cls, v, values):
+    @model_validator(mode='after')
+    @classmethod
+    def passwords_match(cls, data):
         """确认密码必须匹配"""
-        if 'password' in values and v != values['password']:
+        if data.password != data.password_confirm:
             raise ValueError('Passwords do not match')
-        return v
+        return data
 
 # 使用
 user = UserCreate(
@@ -1000,7 +1002,8 @@ class UserRegister(BaseModel):
     password: str = Field(..., min_length=8)
     age: int = Field(..., ge=0, le=150)
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def password_strength(cls, v):
         """格式规则：密码必须包含字母和数字"""
         if not any(c.isalpha() for c in v):
@@ -1050,7 +1053,8 @@ class OrderCreate(BaseModel):
     quantity: int = Field(..., gt=0)  # 格式：数量 > 0
     coupon_code: str | None = None
 
-    @validator('coupon_code')
+    @field_validator('coupon_code')
+    @classmethod
     def coupon_format(cls, v):
         """格式：优惠券代码格式"""
         if v and not re.match(r'^COUPON\d{4}$', v):
@@ -1293,7 +1297,7 @@ async def get_user(user_id: int):
                 code=404,
                 message="User not found",
                 timestamp=int(time.time())
-            ).dict()
+            ).model_dump()
         )
 
 # 错误响应：
