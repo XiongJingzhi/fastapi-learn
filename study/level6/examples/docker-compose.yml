@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # 用户服务
+  user-service:
+    build: ./user-service
+    ports:
+      - "8001:8000"
+    environment:
+      - SERVICE_NAME=user-service
+      - DATABASE_URL=postgresql://user:pass@user-db:5432/userdb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microservices
+
+  # 订单服务
+  order-service:
+    build: ./order-service
+    ports:
+      - "8002:8000"
+    environment:
+      - SERVICE_NAME=order-service
+      - DATABASE_URL=postgresql://user:pass@order-db:5432/orderdb
+      - USER_SERVICE_URL=http://user-service:8000
+      - PRODUCT_SERVICE_URL=http://product-service:8000
+    depends_on:
+      user-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microservices
+
+  # 产品服务
+  product-service:
+    build: ./product-service
+    ports:
+      - "8003:8000"
+    environment:
+      - SERVICE_NAME=product-service
+      - DATABASE_URL=postgresql://user:pass@product-db:5432/productdb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microservices
+
+  # API 网关
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:8000
+      - ORDER_SERVICE_URL=http://order-service:8000
+      - PRODUCT_SERVICE_URL=http://product-service:8000
+    depends_on:
+      - user-service
+      - order-service
+      - product-service
+    networks:
+      - microservices
+
+  # Redis（缓存和限流）
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices
+
+  # 用户数据库
+  user-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=userdb
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices
+
+  # 订单数据库
+  order-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=orderdb
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices
+
+  # 产品数据库
+  product-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=productdb
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    driver: bridge
+
+volumes:
+  user-db-data:
+  order-db-data:
+  product-db-data:
