@@ -732,7 +732,7 @@ async def create_order_endpoint(order_data: OrderCreate):
             order = await create_order(
                 session,
                 order_data.user_id,
-                [item.dict() for item in order_data.items]
+                [item.model_dump() for item in order_data.items]
             )
             return order
         except ValueError as e:
@@ -758,7 +758,7 @@ async def get_statistics_endpoint():
 async def bulk_create_products_endpoint(products: List[ProductCreate]):
     """批量创建产品"""
     async with async_session() as session:
-        products_data = [p.dict() for p in products]
+        products_data = [p.model_dump() for p in products]
         count = await bulk_create_products(session, products_data)
         return {"created": count}
 

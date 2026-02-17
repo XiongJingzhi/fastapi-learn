@@ -28,7 +28,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Callable
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 # ═══════════════════════════════════════════════════════════════════
 # 日志配置
@@ -160,10 +160,11 @@ class BaseEvent(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     data: Dict[str, Any]
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
         }
+    )
 
 
 class UserCreatedEvent(BaseEvent):
@@ -176,7 +177,8 @@ class EmailEvent(BaseEvent):
     event_type: EventType
     data: Dict[str, Any]
 
-    @validator("data")
+    @field_validator("data")
+    @classmethod
     def validate_email_data(cls, v):
         required = ["to", "subject", "body"]
         for field in required:
@@ -190,13 +192,13 @@ class OrderEvent(BaseEvent):
     event_type: EventType
     data: Dict[str, Any]
 
-    @validator("data")
+    @field_validator("data")
+    @classmethod
     def validate_order_data(cls, v):
-        if v.get("event_type") == "order.created":
-            required = ["order_id", "user_id", "amount"]
-            for field in required:
-                if field not in v:
-                    raise ValueError(f"Missing required field: {field}")
+        required = ["order_id", "user_id", "amount"]
+        for field in required:
+            if field not in v:
+                raise ValueError(f"Missing required field: {field}")
         return v
 
 
@@ -235,7 +237,7 @@ class EventPublisher:
         """
         try:
             # 验证
-            event_dict = event.dict()
+            event_dict = event.model_dump()
 
             # 发布
             msg_id = await self.mq.publish(topic, event_dict)

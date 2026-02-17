@@ -115,7 +115,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class UserService:
     async def create_user(self, user_data: UserCreate, session: AsyncSession):
         # 问题 1: Service 被绑死在 SQLAlchemy
-        user = User(**user_data.dict())
+        user = User(**user_data.model_dump())
         session.add(user)
         await session.commit()
 
@@ -219,7 +219,7 @@ class SQLUserRepository(UserRepository):
         send_welcome_email(user_data.email)
 
         # ✅ 数据持久化（这是 Repository 该做的）
-        user = User(**user_data.dict())
+        user = User(**user_data.model_dump())
         self.session.add(user)
         await self.session.commit()
         return user
@@ -673,7 +673,7 @@ class SQLUserRepository(UserRepository):
 class UserService:
     async def create_user(self, user_data: UserCreate):
         async with AsyncSession() as session:
-            user = User(**user_data.dict())
+            user = User(**user_data.model_dump())
             session.add(user)
             await session.commit()
 
@@ -698,7 +698,7 @@ class SQLUserRepository(UserRepository):
             raise ValueError("Password too weak")
 
         # ✅ 数据持久化
-        user = User(**user_data.dict())
+        user = User(**user_data.model_dump())
         self.session.add(user)
         await self.session.commit()
 

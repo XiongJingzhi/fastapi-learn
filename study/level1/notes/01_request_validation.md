@@ -265,7 +265,7 @@ class Item(BaseModel):
     description: str | None = Field(None, max_length=500)
     # 描述可选，最多 500 字符
 
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
     # 标签列表，默认为空列表
 ```
 
@@ -402,7 +402,7 @@ class ProductFilter(BaseModel):
 
     max_price: float | None = Field(None, ge=0)
 
-    brands: list[str] = []
+    brands: list[str] = Field(default_factory=list)
     # 品牌列表
 
     in_stock: bool | None = None

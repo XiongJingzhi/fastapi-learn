@@ -218,6 +218,7 @@ class Payment(BaseModel):
 ```python
 from pydantic import BaseModel
 from typing import Optional, List
+from pydantic import Field
 
 class Item(BaseModel):
     # 基础类型
@@ -230,7 +231,7 @@ class Item(BaseModel):
     description: Optional[str] = None
 
     # 默认值
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
 
     # 嵌套模型
     class Category(BaseModel):

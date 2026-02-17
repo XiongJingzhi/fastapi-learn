@@ -326,7 +326,7 @@ async def create_user(user: UserCreate):
         raise HTTPException(400, "Email required")
 
     # 处理
-    user_data = user.dict()
+    user_data = user.model_dump()
     user_data["hashed_password"] = hash_password(user.password)
 
     # 保存

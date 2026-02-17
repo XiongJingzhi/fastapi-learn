@@ -12,19 +12,28 @@ from contextlib import asynccontextmanager
 import logging
 from typing import Optional
 
-# 尝试导入配置（如果存在）
+# 尝试导入配置（优先包内相对导入，其次脚本路径导入）
 try:
-    from config.base import Settings
-    settings = Settings()
+    from .config.base import Settings
 except ImportError:
-    from pydantic_settings import BaseSettings
+    try:
+        from config.base import Settings
+    except ImportError:
+        class Settings:
+            APP_NAME: str = "FastAPI Application"
+            DEBUG: bool = False
+            VERSION: str = "1.0.0"
+            LOG_LEVEL: str = "INFO"
+            HOST: str = "0.0.0.0"
+            PORT: int = 8000
+            WORKERS: int = 1
+            CORS_ENABLED: bool = True
+            CORS_ALLOW_ORIGINS: list[str] = ["*"]
+            CORS_ALLOW_CREDENTIALS: bool = True
+            CORS_ALLOW_METHODS: list[str] = ["*"]
+            CORS_ALLOW_HEADERS: list[str] = ["*"]
 
-    class Settings(BaseSettings):
-        APP_NAME: str = "FastAPI Application"
-        DEBUG: bool = False
-        VERSION: str = "1.0.0"
-
-    settings = Settings()
+settings = Settings()
 
 # 配置日志
 logging.basicConfig(

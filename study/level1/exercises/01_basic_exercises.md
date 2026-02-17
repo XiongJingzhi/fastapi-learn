@@ -726,7 +726,7 @@ async def search_products(
         "category": category,
         "q": q,
         "sort_by": sort_by,
-        "filters": filters.dict() if filters else None
+        "filters": filters.model_dump() if filters else None
     }
 
     return SearchResponse(

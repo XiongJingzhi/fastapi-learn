@@ -703,7 +703,8 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8000,
-        reload=True
+        # 直接 python 运行文件时关闭 reload，避免 uvicorn import-string 警告
+        reload=False
     )
 
 

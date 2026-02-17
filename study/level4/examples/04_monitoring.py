@@ -30,7 +30,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.responses import JSONResponse
@@ -784,7 +784,7 @@ async def health_check():
     if result.status == HealthStatus.UNHEALTHY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=result.dict(),
+            detail=result.model_dump(),
         )
 
     return result

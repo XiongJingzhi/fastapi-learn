@@ -28,7 +28,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, status
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from sqlalchemy import text, select, insert, update, delete
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -499,8 +499,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -573,7 +572,7 @@ async def update_user_endpoint(user_id: int, user_data: UserUpdate):
     """更新用户"""
     async with get_db() as db:
         # 过滤 None 值
-        update_data = {k: v for k, v in user_data.dict().items() if v is not None}
+        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
 
         if not update_data:
             raise HTTPException(

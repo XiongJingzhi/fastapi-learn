@@ -773,7 +773,7 @@ async def get_weather(
 
 ```python
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """应用配置"""
@@ -783,8 +783,7 @@ class Settings(BaseSettings):
     STRIPE_API_KEY: str
     SENDGRID_API_KEY: str
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 # 加载配置
 settings = Settings()

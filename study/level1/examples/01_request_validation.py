@@ -11,11 +11,9 @@
     uvicorn study.level1.examples.01_request_validation:app --reload
     访问: http://localhost:8000/docs
 """
-from pytest import console_main
-
 from typing import Optional, List, Set
 from datetime import datetime
-from fastapi import FastAPI, Path, Query, Body, Header, Cookie, HTTPException, status, Request
+from fastapi import FastAPI, Path, Query, Body, Header, Cookie, Depends, HTTPException, status, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
@@ -192,7 +190,7 @@ class ItemBase(BaseModel):
 class ItemCreate(ItemBase):
     """创建商品时的模型"""
     tags: List[str] = Field(
-        default=[],
+        default_factory=list,
         description="商品标签列表"
     )
 
@@ -203,7 +201,7 @@ class ItemResponse(BaseModel):
     name: str
     price: float
     with_tax: float
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
     # Pydantic v2 写法（替代 class Config）
     model_config = ConfigDict(from_attributes=True)
 
@@ -246,7 +244,7 @@ class ItemUpdate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     price: float = Field(..., gt=0)
     description: Optional[str] = Field(None, max_length=500)
-    tags: List[str] = Field(default=[])
+    tags: List[str] = Field(default_factory=list)
 
 
 @app.put("/items/{item_id}/recommended")
@@ -291,7 +289,7 @@ class ItemUpdateWithMeta(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     price: float = Field(..., gt=0)
     description: Optional[str] = Field(None, max_length=500)
-    tags: List[str] = Field(default=[])
+    tags: List[str] = Field(default_factory=list)
 
 
 class ItemUpdateRequest(BaseModel):
@@ -442,7 +440,7 @@ async def read_headers(
 
 @app.get("/auth/")
 async def check_auth(
-    authorization: Optional[str] = Header(
+    authorization: str = Header(
         ...,
         description="Bearer token"
     )
@@ -464,6 +462,29 @@ async def check_auth(
         "token": token[:20] + "...",  # 只显示前20个字符
         "status": "authenticated",
         "message": "认证成功"
+    }
+
+
+@app.get("/headers/response")
+async def set_response_headers(response: Response):
+    """
+    Header 参数扩展示例 - 设置响应头
+
+    说明:
+        - 通过 Response 对象设置响应头
+        - 常用于链路追踪、版本标识、缓存控制
+    """
+    response.headers["X-Request-Id"] = "demo-request-001"
+    response.headers["X-Service-Version"] = "1.0.0"
+    response.headers["Cache-Control"] = "no-store"
+
+    return {
+        "message": "已设置响应头",
+        "headers_set": [
+            "X-Request-Id",
+            "X-Service-Version",
+            "Cache-Control"
+        ]
     }
 
 
@@ -500,21 +521,38 @@ async def read_cookies(
 
 @app.post("/login/")
 async def login(
+    response: Response,
     username: str = Body(...),
     password: str = Body(...)
 ):
     """
     模拟登录并设置 Cookie 的端点
 
-    注意: 实际应用中应该使用 Set-Cookie 响应头
-    这里只是演示如何接收凭证
+    演示:
+        - 接收登录凭证
+        - 通过 Set-Cookie 响应头设置 Cookie
     """
     # 实际应用中这里应该验证密码哈希
-    if username and password:
+    if username.strip() and password.strip():
+        response.set_cookie(
+            key="session_id",
+            value=f"session-{username.lower()}-demo",
+            max_age=3600,  # 1 小时
+            httponly=True,
+            samesite="lax"
+        )
+        response.set_cookie(
+            key="user_preference",
+            value="light",
+            max_age=7 * 24 * 3600,  # 7 天
+            httponly=False,
+            samesite="lax"
+        )
+
         return {
             "message": "登录成功",
             "username": username,
-            "note": "实际应用中应通过响应头设置 Cookie"
+            "note": "响应已通过 Set-Cookie 写入 session_id 和 user_preference"
         }
     else:
         raise HTTPException(
@@ -557,7 +595,7 @@ class UserCreate(BaseModel):
         description="确认密码"
     )
     interests: Set[str] = Field(
-        default=set(),
+        default_factory=set,
         description="兴趣标签（自动去重）"
     )
 

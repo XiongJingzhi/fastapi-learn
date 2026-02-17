@@ -617,7 +617,7 @@ class PaymentService:
             result = await mock_api.call(
                 f"/payments",
                 method="POST",
-                data=request.dict(),
+                data=request.model_dump(),
             )
 
             return PaymentResponse(

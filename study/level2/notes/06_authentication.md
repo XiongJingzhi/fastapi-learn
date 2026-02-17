@@ -307,6 +307,8 @@ async def user_profile(
 ### 基于权限的访问控制
 
 ```python
+from pydantic import Field
+
 class Permission(str, Enum):
     READ = "read"
     WRITE = "write"
@@ -315,7 +317,7 @@ class Permission(str, Enum):
 
 class UserInDB(BaseModel):
     username: str
-    permissions: list[Permission] = []
+    permissions: list[Permission] = Field(default_factory=list)
 
 def has_permission(permission: Permission):
     """检查权限"""

@@ -62,7 +62,7 @@ class SQLUserRepository(UserRepository):
 class UserService:
     async def create_user(self, user_data: UserCreate):
         async with AsyncSession() as session:
-            user = User(**user_data.dict())
+            user = User(**user_data.model_dump())
             session.add(user)
             await session.commit()
 
@@ -453,7 +453,7 @@ Level 4 (生产就绪)
 class UserService:
     async def create_user(self, user_data: UserCreate):
         async with AsyncSession() as session:
-            session.add(User(**user_data.dict()))
+            session.add(User(**user_data.model_dump()))
             await session.commit()
 
 # ✅ 正确：Service 通过 Repository 访问数据库

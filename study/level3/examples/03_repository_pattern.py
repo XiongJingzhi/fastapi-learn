@@ -24,7 +24,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from fastapi import FastAPI, Depends, HTTPException, status
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -46,7 +46,7 @@ from sqlalchemy.types import String, Boolean, DateTime
 #         self.session = session  # ← 被绑死在 SQLAlchemy
 #
 #     async def create_user(self, user_data: UserCreate):
-#         user = User(**user_data.dict())
+#         user = User(**user_data.model_dump())
 #         self.session.add(user)
 #         await self.session.commit()
 #
@@ -739,8 +739,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════

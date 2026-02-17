@@ -24,7 +24,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import select, update, text, and_
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -532,14 +532,15 @@ class TransferRequest(BaseModel):
     to_id: int = Field(..., gt=0)
     amount: float = Field(..., gt=0)
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "from_id": 1,
                 "to_id": 2,
-                "amount": 100.0
+                "amount": 100.0,
             }
         }
+    )
 
 
 class OrderCreate(BaseModel):

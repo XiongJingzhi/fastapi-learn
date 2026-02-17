@@ -6,9 +6,8 @@
 # ========================================
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from typing import Optional
-import os
 
 
 class Settings(BaseSettings):
@@ -76,9 +75,9 @@ class Settings(BaseSettings):
     # CORS 配置
     # ----------------------------------------
     CORS_ENABLED: bool = Field(default=True, description="是否启用 CORS")
-    CORS_ALLOW_ORIGINS: list[str] = Field(default=["http://localhost:3000"], description="允许的源")
-    CORS_ALLOW_METHODS: list[str] = Field(default=["GET", "POST", "PUT", "DELETE", "OPTIONS"], description="允许的方法")
-    CORS_ALLOW_HEADERS: list[str] = Field(default=["*"], description="允许的请求头")
+    CORS_ALLOW_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:3000"], description="允许的源")
+    CORS_ALLOW_METHODS: list[str] = Field(default_factory=lambda: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], description="允许的方法")
+    CORS_ALLOW_HEADERS: list[str] = Field(default_factory=lambda: ["*"], description="允许的请求头")
     CORS_ALLOW_CREDENTIALS: bool = Field(default=True, description="是否允许携带凭证")
 
     # ----------------------------------------
@@ -114,7 +113,7 @@ class Settings(BaseSettings):
     # 文件上传配置
     # ----------------------------------------
     MAX_UPLOAD_SIZE: int = Field(default=10485760, description="最大上传文件大小（字节，默认 10MB）")
-    ALLOWED_EXTENSIONS: list[str] = Field(default=["jpg", "jpeg", "png", "gif", "pdf"], description="允许的文件扩展名")
+    ALLOWED_EXTENSIONS: list[str] = Field(default_factory=lambda: ["jpg", "jpeg", "png", "gif", "pdf"], description="允许的文件扩展名")
     UPLOAD_DIR: str = Field(default="uploads", description="上传文件保存目录")
 
     # ----------------------------------------
@@ -136,28 +135,32 @@ class Settings(BaseSettings):
     # ----------------------------------------
     # 验证器
     # ----------------------------------------
-    @validator("DATABASE_URL")
+    @field_validator("DATABASE_URL")
+    @classmethod
     def validate_database_url(cls, v):
         """验证数据库 URL 格式"""
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError("DATABASE_URL must start with 'postgresql://' or 'postgresql+asyncpg://'")
         return v
 
-    @validator("REDIS_URL")
+    @field_validator("REDIS_URL")
+    @classmethod
     def validate_redis_url(cls, v):
         """验证 Redis URL 格式"""
         if not v.startswith("redis://"):
             raise ValueError("REDIS_URL must start with 'redis://'")
         return v
 
-    @validator("SECRET_KEY")
+    @field_validator("SECRET_KEY")
+    @classmethod
     def validate_secret_key(cls, v):
         """验证密钥强度"""
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
         return v
 
-    @validator("LOG_LEVEL")
+    @field_validator("LOG_LEVEL")
+    @classmethod
     def validate_log_level(cls, v):
         """验证日志级别"""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

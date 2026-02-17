@@ -87,7 +87,8 @@
 
 ```python
 # config.py
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 class Settings(BaseSettings):
@@ -119,11 +120,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # CORS
-    cors_origins: list[str] = []
+    cors_origins: list[str] = Field(default_factory=list)
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+    )
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -320,7 +322,7 @@ spec:
 ### Pydantic 验证
 
 ```python
-from pydantic import validator, Field
+from pydantic import Field, field_validator, model_validator
 
 class Settings(BaseSettings):
     """应用配置（带验证）"""
@@ -329,7 +331,8 @@ class Settings(BaseSettings):
     database_url: str = Field(..., description="Database URL")
 
     # 验证 URL 格式
-    @validator("database_url")
+    @field_validator("database_url")
+    @classmethod
     def validate_database_url(cls, v):
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError("Invalid database URL")
@@ -341,18 +344,17 @@ class Settings(BaseSettings):
     # 验证环境值
     environment: str = Field(
         ...,
-        regex="^(development|staging|production)$"
+        pattern="^(development|staging|production)$"
     )
 
     # 根据环境设置默认值
-    @validator("debug", pre=True)
-    def set_debug_default(cls, v, values):
-        if v is None:
-            env = values.get("environment", "development")
-            return env == "development"
-        return v
+    @model_validator(mode="after")
+    def set_debug_default(self):
+        if self.debug is None:
+            self.debug = self.environment == "development"
+        return self
 
-    debug: bool = False
+    debug: bool | None = None
 ```
 
 ---
@@ -386,14 +388,13 @@ ENVIRONMENT=production DEBUG=true uvicorn main:app
 ### 实验 2：Pydantic Settings
 
 ```python
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
     redis_url: str
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 settings = Settings()
 print(settings.database_url)
