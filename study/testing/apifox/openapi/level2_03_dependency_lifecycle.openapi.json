@@ -1,0 +1,241 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "依赖的生命周期",
+    "description": "演示依赖的不同生命周期和资源管理",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/request/count": {
+      "get": {
+        "summary": "Request Count",
+        "description": "Request-scoped 示例\n\n🔍 行为：\n- 每次请求都创建新的 RequestCounter\n- counter.call_count 总是从 0 开始\n- 不同请求的 counter 是不同的对象",
+        "operationId": "request_count_request_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app/stats": {
+      "get": {
+        "summary": "App Stats",
+        "description": "Application-scoped 示例\n\n🔍 行为：\n- 所有请求共享同一个 AppState\n- state.request_count 会累加\n- state.last_request_time 会更新\n\n✅ 可以用来做：\n- 请求计数\n- 全局统计\n- 配置管理",
+        "operationId": "app_stats_app_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/query": {
+      "get": {
+        "summary": "Query Database",
+        "description": "使用 yield 管理的数据库连接\n\n🔍 执行流程：\n1. get_db_connection() 被调用\n2. 创建 DatabaseConnection（打印\"连接\"）\n3. db 对象注入到这里\n4. 执行查询逻辑\n5. 返回响应\n6. 执行 db.close()（打印\"关闭\"）\n\n✅ 无论是否出错，连接都会被正确关闭！",
+        "operationId": "query_database_db_query_get",
+        "parameters": [
+          {
+            "name": "db_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "test_db",
+              "title": "Db Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tx/success": {
+      "get": {
+        "summary": "Successful Transaction",
+        "description": "成功的事务\n\n🔍 执行流程：\n1. 创建事务（打印\"事务开始\"）\n2. 执行业务逻辑\n3. 返回响应\n4. 执行 tx.commit()（打印\"事务提交\"）",
+        "operationId": "successful_transaction_tx_success_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tx/fail": {
+      "get": {
+        "summary": "Failed Transaction",
+        "description": "失败的事务\n\n🔍 执行流程：\n1. 创建事务（打印\"事务开始\"）\n2. 抛出异常\n3. 执行 tx.rollback()（打印\"事务回滚\"）\n4. 异常继续传播",
+        "operationId": "failed_transaction_tx_fail_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cache/demo": {
+      "get": {
+        "summary": "Demo Cache",
+        "description": "依赖缓存演示\n\n🔍 观察：\n- 查看控制台输出\n- \"创建昂贵资源\" 只打印一次\n- resource1, resource2, resource3 是同一个对象\n\n✅ 性能优化：\n- 避免重复创建\n- 节省资源\n- 提高性能",
+        "operationId": "demo_cache_cache_demo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cache/disabled": {
+      "get": {
+        "summary": "Demo No Cache",
+        "description": "禁用缓存演示\n\n🔍 行为：\n- 每次使用都创建新实例\n- resource1 和 resource2 是不同的对象\n\n💡 使用场景：\n- 需要每次都获取新数据\n- 不希望缓存\n- 特殊需求",
+        "operationId": "demo_no_cache_cache_disabled_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lifecycle/compare": {
+      "get": {
+        "summary": "Compare Lifecycles",
+        "description": "生命周期对比总结\n\n══════════════════════════════════════════════════════════════\nRequest-scoped（默认）\n══════════════════════════════════════════════════════════════\n\ndef get_data() -> Data:\n    return Data()  # 每次创建新实例\n\n@app.get(\"/data\")\nasync def use_data(\n    data: Data = Depends(get_data)\n):\n    return data\n\n特点：\n- 每个请求创建新实例\n- 请求结束销毁实例\n- 不同请求不共享状态\n- FastAPI 默认行为\n\n适用场景：\n✅ 大多数业务逻辑\n✅ 请求特定数据\n✅ 需要状态隔离\n\n══════════════════════════════════════════════════════════════\nApplication-scoped（全局单例）\n══════════════════════════════════════════════════════════════\n\napp_state = AppState()  # 模块级变量\n\ndef get_state() -> AppState:\n    return app_state  # 始终返回同一个实例\n\n@app.get(\"/state\")\nasync def use_state(\n    state: AppState = Depends(get_state)\n):\n    return state\n\n特点：\n- 应用启动时创建\n- 所有请求共享实例\n- 状态持久化\n- 需要考虑并发安全\n\n适用场景：\n✅ 配置信息（只读）\n✅ 全局统计（需加锁）\n✅ 连接池\n✅ 缓存（需加锁）\n\n══════════════════════════════════════════════════════════════\n使用 yield 管理资源\n══════════════════════════════════════════════════════════════\n\ndef get_db():\n    db = Database()\n    try:\n        yield db  # 注入到 endpoint\n    finally:\n        db.close()  # 清理资源\n\n@app.get(\"/query\")\nasync def query(\n    db: Database = Depends(get_db)\n):\n    return db.query(\"...\")\n\n特点：\n- 自动管理资源\n- 确保清理代码执行\n- 即使异常也会清理\n- 类似 Python 的 with 语句\n\n适用场景：\n✅ 数据库连接\n✅ 文件句柄\n✅ 网络连接\n✅ 任何需要清理的资源\n\n══════════════════════════════════════════════════════════════",
+        "operationId": "compare_lifecycles_lifecycle_compare_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

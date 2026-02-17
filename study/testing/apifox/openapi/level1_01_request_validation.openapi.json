@@ -1,0 +1,1183 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI 请求参数校验示例",
+    "description": "演示 Path/Query/Body/Header/Cookie 参数的各种用法",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/items/{item_id}": {
+      "get": {
+        "summary": "Read Item",
+        "description": "Path 参数示例 - 从URL路径中获取参数\n\n示例:\n    GET /items/42\n\n参数验证:\n    - item_id 必须是整数\n    - item_id 必须大于0\n    - item_id 必须小于等于1000",
+        "operationId": "read_item_items__item_id__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "商品ID",
+              "title": "Item Id"
+            },
+            "description": "商品ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{file_path}": {
+      "get": {
+        "summary": "Read File",
+        "description": "Path 参数示例 - 匹配任意路径\n\n示例:\n    GET /files/home/user/documents/file.txt\n\n使用 :path 可以匹配包含 / 的路径",
+        "operationId": "read_file_files__file_path__get",
+        "parameters": [
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/": {
+      "get": {
+        "summary": "List Items",
+        "description": "Query 参数示例 - 从URL查询字符串获取参数\n\n示例:\n    GET /items/?skip=0&limit=10&keyword=phone\n\n参数验证:\n    - skip: 默认0，必须 >= 0\n    - limit: 默认10，必须在 1-100 之间\n    - keyword: 可选，如果提供则长度在 1-50 之间",
+        "operationId": "list_items_items__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "跳过的记录数",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "跳过的记录数"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "返回的记录数",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "返回的记录数"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "搜索关键词",
+              "title": "Keyword"
+            },
+            "description": "搜索关键词"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Item",
+        "description": "Body 参数示例 - 使用 Pydantic 模型验证请求体\n\n示例请求体:\n{\n    \"name\": \"iPhone 15\",\n    \"description\": \"最新款苹果手机\",\n    \"price\": 7999.0,\n    \"tax\": 0.13,\n    \"tags\": [\"电子产品\", \"手机\"]\n}\n\n验证规则:\n    - name: 必填，长度 1-100\n    - description: 可选，最长500字符\n    - price: 必填，必须大于0\n    - tax: 可选，必须 >= 0\n    - tags: 可选，字符串列表",
+        "operationId": "create_item_items__post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/": {
+      "get": {
+        "summary": "Search Items",
+        "description": "Query 参数示例 - 多值参数\n\n示例:\n    GET /search/?q=phone&q=laptop&q=tablet\n\n可以接收多个同名参数，自动转换为列表",
+        "operationId": "search_items_search__get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "搜索关键词列表，可以多次传递",
+              "default": [],
+              "title": "Q"
+            },
+            "description": "搜索关键词列表，可以多次传递"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{item_id}/recommended": {
+      "put": {
+        "summary": "Update Item Recommended",
+        "description": "✅ 推荐写法：使用统一的 Pydantic 模型\n\n优点:\n    - 清晰明确，IDE 有完整提示\n    - 自动验证整个请求体\n    - 客户端知道确切的数据结构\n    - 易于维护和扩展\n\n示例请求体:\n{\n    \"name\": \"MacBook Pro\",\n    \"price\": 15999.0,\n    \"description\": \"高性能笔记本\",\n    \"tags\": [\"电子产品\", \"电脑\"]\n}\n\n注意:\n    - item_id 来自 Path 参数\n    - item 是整个请求体（Pydantic 模型）",
+        "operationId": "update_item_recommended_items__item_id__recommended_put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "商品ID",
+              "title": "Item Id"
+            },
+            "description": "商品ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/study__level1__examples__01_request_validation__ItemUpdate__1",
+                "description": "商品数据"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{item_id}/with-meta": {
+      "put": {
+        "summary": "Update Item With Metadata",
+        "description": "✅ 高级场景：商品数据 + 元数据\n\n当请求体结构复杂时，将其封装为一个完整的模型\n\n优点:\n    - 清晰的数据结构\n    - 所有验证规则集中定义\n    - 易于版本控制\n\n示例请求体:\n{\n    \"item\": {\n        \"name\": \"MacBook Pro\",\n        \"price\": 15999.0,\n        \"tags\": [\"电子产品\"]\n    },\n    \"user_id\": 123,\n    \"priority\": 5\n}\n\n说明:\n    - item_id 来自 URL 路径\n    - request 是完整的请求体模型\n    - user_id 是操作者ID（实际应用中应从 token 获取）",
+        "operationId": "update_item_with_metadata_items__item_id__with_meta_put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{item_id}/real-world": {
+      "put": {
+        "summary": "Update Item Real World",
+        "description": "✅ 生产环境推荐写法\n\n参数来源:\n    - item_id: Path (URL 路径)\n    - item: Body (请求体 - 商品数据)\n    - current_user_id: Depends (从认证 token 获取)\n    - priority: Query (URL 查询参数)\n\n示例请求:\n    PUT /items/123?priority=5\n    Headers: Authorization: Bearer <token>\n    Body:\n    {\n        \"name\": \"MacBook Pro\",\n        \"price\": 15999.0\n    }\n\n优点:\n    - 用户 ID 不由客户端指定（安全！）\n    - 优先级使用 Query 参数（符合 RESTful）\n    - 清晰的职责分离",
+        "operationId": "update_item_real_world_items__item_id__real_world_put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "default": 10,
+              "title": "Priority"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/study__level1__examples__01_request_validation__ItemUpdate__2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/headers/": {
+      "get": {
+        "summary": "Read Headers",
+        "description": "Header 参数示例 - 从 HTTP 请求头获取参数\n\n注意:\n    - Header 参数会自动将下划线转换为连字符\n    - x_token -> X-Token\n\n示例请求头:\n    X-Token: your-secret-token\n    Accept-Language: zh-CN",
+        "operationId": "read_headers_headers__get",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          },
+          {
+            "name": "accept-language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
+            }
+          },
+          {
+            "name": "x-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "自定义认证令牌",
+              "title": "X-Token"
+            },
+            "description": "自定义认证令牌"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/": {
+      "get": {
+        "summary": "Check Auth",
+        "description": "Header 参数示例 - 必填的认证头\n\n示例请求头:\n    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "operationId": "check_auth_auth__get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bearer token",
+              "title": "Authorization"
+            },
+            "description": "Bearer token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/headers/response": {
+      "get": {
+        "summary": "Set Response Headers",
+        "description": "Header 参数扩展示例 - 设置响应头\n\n说明:\n    - 通过 Response 对象设置响应头\n    - 常用于链路追踪、版本标识、缓存控制",
+        "operationId": "set_response_headers_headers_response_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cookies/": {
+      "get": {
+        "summary": "Read Cookies",
+        "description": "Cookie 参数示例 - 从 HTTP Cookie 获取参数\n\n测试方法:\n    1. 使用浏览器开发者工具设置 Cookie\n    2. 或使用 curl:\n       curl --cookie \"session_id=abc123;user_preference=dark\"                 http://localhost:8000/cookies/",
+        "operationId": "read_cookies_cookies__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "会话ID",
+              "title": "Session Id"
+            },
+            "description": "会话ID"
+          },
+          {
+            "name": "user_preference",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "用户偏好设置",
+              "title": "User Preference"
+            },
+            "description": "用户偏好设置"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login/": {
+      "post": {
+        "summary": "Login",
+        "description": "模拟登录并设置 Cookie 的端点\n\n演示:\n    - 接收登录凭证\n    - 通过 Set-Cookie 响应头设置 Cookie",
+        "operationId": "login_login__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_login__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/": {
+      "post": {
+        "summary": "Create User",
+        "description": "高级验证示例 - 自定义验证器和复杂模型\n\n示例请求体:\n{\n    \"username\": \"john_doe\",\n    \"email\": \"john@example.com\",\n    \"age\": 25,\n    \"password\": \"securepass123\",\n    \"confirm_password\": \"securepass123\",\n    \"interests\": [\"编程\", \"音乐\", \"编程\"]\n}\n\n验证规则:\n    - username: 3-20字符，只允许字母数字下划线，不能是保留词\n    - email: 必须是有效的邮箱格式\n    - age: 必须在 18-120 之间\n    - password: 最少8字符\n    - confirm_password: 必须与 password 一致\n    - interests: 自动去重（使用 Set）",
+        "operationId": "create_user_users__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_id}/items/{item_id}": {
+      "post": {
+        "summary": "Add Order Item",
+        "description": "综合示例 - 同时使用多种参数类型\n\n示例请求:\n    POST /orders/123/items/456?discount=0.1\n    Headers: X-User-Id: 789\n    Cookie: session_token=abc123\n    Body: {\"quantity\": 2}\n\n参数说明:\n    - order_id, item_id: 来自 URL 路径\n    - discount: 来自 URL 查询参数\n    - quantity: 来自请求体\n    - X-User-Id: 来自请求头\n    - session_token: 来自 Cookie",
+        "operationId": "add_order_item_orders__order_id__items__item_id__post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "discount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "default": 0,
+              "title": "Discount"
+            }
+          },
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "X-User-Id"
+            }
+          },
+          {
+            "name": "session_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "integer",
+                "maximum": 100,
+                "minimum": 1,
+                "title": "Quantity"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "根路径 - 欢迎页面",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "健康检查端点",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_login_login__post": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_login__post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ItemCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "description": "商品名称"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "商品描述"
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Price",
+            "description": "商品价格，必须大于0"
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax",
+            "description": "税率"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "商品标签列表"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "price"
+        ],
+        "title": "ItemCreate",
+        "description": "创建商品时的模型"
+      },
+      "ItemResponse": {
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "title": "Item Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "with_tax": {
+            "type": "number",
+            "title": "With Tax"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "name",
+          "price",
+          "with_tax"
+        ],
+        "title": "ItemResponse",
+        "description": "商品响应模型"
+      },
+      "ItemUpdateRequest": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ItemUpdateWithMeta"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id",
+            "description": "操作用户ID"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "description": "优先级",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "user_id"
+        ],
+        "title": "ItemUpdateRequest",
+        "description": "完整的更新请求模型\n\n当需要同时传递商品数据和元数据时使用"
+      },
+      "ItemUpdateWithMeta": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Price"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "price"
+        ],
+        "title": "ItemUpdateWithMeta",
+        "description": "商品更新模型（包含元数据）"
+      },
+      "UserCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_]+$",
+            "title": "Username",
+            "description": "用户名"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "邮箱地址"
+          },
+          "age": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 18.0,
+            "title": "Age",
+            "description": "年龄，必须成年"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 8,
+            "title": "Password",
+            "description": "密码"
+          },
+          "confirm_password": {
+            "type": "string",
+            "title": "Confirm Password",
+            "description": "确认密码"
+          },
+          "interests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true,
+            "title": "Interests",
+            "description": "兴趣标签（自动去重）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "email",
+          "age",
+          "password",
+          "confirm_password"
+        ],
+        "title": "UserCreate",
+        "description": "用户创建模型 - 演示高级验证"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "study__level1__examples__01_request_validation__ItemUpdate__1": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Price"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "price"
+        ],
+        "title": "ItemUpdate",
+        "description": "商品更新模型 - 统一的请求结构（推荐）"
+      },
+      "study__level1__examples__01_request_validation__ItemUpdate__2": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          }
+        },
+        "type": "object",
+        "title": "ItemUpdate",
+        "description": "简化的更新模型"
+      }
+    }
+  }
+}

@@ -1,0 +1,239 @@
+{
+  "info": {
+    "_postman_id": "0ee8c6cc-2af1-4a1a-bf71-e1cf3f15e8af",
+    "name": "FastAPI Learning (Level1-Level5)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "FastAPI 学习工程回归请求集合。请先启动对应示例 app，再运行对应目录请求。"
+  },
+  "item": [
+    {
+      "name": "Level1 - 01 Request Validation",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "GET /headers/response",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/headers/response"
+          }
+        },
+        {
+          "name": "POST /login/ (set cookie)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": "{{base_url}}/login/"
+          }
+        },
+        {
+          "name": "POST /users/ (invalid payload expect 422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"age\": 25,\n  \"password\": \"abc12345\",\n  \"confirm_password\": \"abc12345\"\n}"
+            },
+            "url": "{{base_url}}/users/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Level1 - 05 RESTful API",
+      "item": [
+        {
+          "name": "POST /api/v1/users/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"postman_user\",\n  \"email\": \"postman_user@example.com\",\n  \"full_name\": \"Postman User\",\n  \"bio\": \"created from postman\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/users/"
+          }
+        },
+        {
+          "name": "GET /api/v1/users/",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/users/?skip=0&limit=10&active_only=true"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/users/1",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"updated by postman\"\n}"
+            },
+            "url": "{{base_url}}/api/v1/users/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Level2",
+      "item": [
+        {
+          "name": "GET /health (01_di_basics)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "GET /compare/level1-vs-level2 (01_di_basics)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/compare/level1-vs-level2"
+          }
+        },
+        {
+          "name": "GET /best-practices/summary (05_best_practices)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/best-practices/summary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Level3",
+      "item": [
+        {
+          "name": "POST /users (01_database_basics)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"db_user\",\n  \"email\": \"db_user@example.com\"\n}"
+            },
+            "url": "{{base_url}}/users"
+          }
+        },
+        {
+          "name": "GET /users (01_database_basics)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users"
+          }
+        },
+        {
+          "name": "GET / (05_migrations)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Level4",
+      "item": [
+        {
+          "name": "GET / (02_message_queue)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        },
+        {
+          "name": "POST /users (02_message_queue)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"mq_user\",\n  \"email\": \"mq_user@example.com\"\n}"
+            },
+            "url": "{{base_url}}/users"
+          }
+        },
+        {
+          "name": "GET /metrics (04_monitoring)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Level5",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "GET /ready",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ready"
+          }
+        },
+        {
+          "name": "GET /api/v1/users",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/users"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ]
+}

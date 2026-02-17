@@ -1,0 +1,440 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "类依赖 vs 函数依赖",
+    "description": "演示不同类型的依赖注入方式",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/func/agent": {
+      "get": {
+        "summary": "Check Agent",
+        "description": "使用函数依赖",
+        "operationId": "check_agent_func_agent_get",
+        "parameters": [
+          {
+            "name": "user_agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Agent"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/class/items": {
+      "get": {
+        "summary": "Read Items",
+        "description": "使用类依赖\n\n🔍 FastAPI 的魔法：\n1. 看到依赖是 CommonQueryParams 类\n2. 自动调用 CommonQueryParams(skip=0, limit=100)\n3. 参数从请求中自动提取\n4. 返回的实例注入到 endpoint",
+        "operationId": "read_items_class_items_get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/default": {
+      "get": {
+        "summary": "Use Default Db",
+        "description": "使用默认配置的数据库连接\n\n💡 FastAPI 会调用 DatabaseConnection()\n使用所有默认参数",
+        "operationId": "use_default_db_db_default_get",
+        "parameters": [
+          {
+            "name": "host",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "localhost",
+              "title": "Host"
+            }
+          },
+          {
+            "name": "port",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 5432,
+              "title": "Port"
+            }
+          },
+          {
+            "name": "database",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "mydb",
+              "title": "Database"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/custom": {
+      "get": {
+        "summary": "Use Custom Db",
+        "description": "使用自定义配置的数据库连接\n\n💡 使用工厂函数的好处：\n- 可以读取配置文件\n- 可以进行初始化逻辑\n- 可以创建单例",
+        "operationId": "use_custom_db_db_custom_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/counter/func": {
+      "get": {
+        "summary": "Use Counter Func",
+        "description": "使用可调用对象\n\n🔍 工作原理：\n1. RequestCounter() 创建实例\n2. FastAPI 调用实例的 __call__() 方法\n3. 返回值注入到 endpoint\n\n⚠️  注意：\n每次请求都会创建新实例",
+        "operationId": "use_counter_func_counter_func_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/format/func": {
+      "get": {
+        "summary": "Format With Func",
+        "description": "使用函数依赖",
+        "operationId": "format_with_func_format_func_get",
+        "parameters": [
+          {
+            "name": "date_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "%Y-%m-%d",
+              "title": "Date Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/format/class": {
+      "get": {
+        "summary": "Format With Class",
+        "description": "使用类依赖",
+        "operationId": "format_with_class_format_class_get",
+        "parameters": [
+          {
+            "name": "date_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "%Y-%m-%d",
+              "title": "Date Format"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "UTC",
+              "title": "Timezone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service/users/{user_id}": {
+      "get": {
+        "summary": "Get User",
+        "description": "使用类依赖实现复杂逻辑\n\n✅ 类依赖的优势：\n- 可以管理状态（缓存）\n- 可以提供多个方法\n- 代码组织更清晰",
+        "operationId": "get_user_service_users__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service/cache/clear": {
+      "get": {
+        "summary": "Clear Cache",
+        "description": "清空缓存",
+        "operationId": "clear_cache_service_cache_clear_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compare/summary": {
+      "get": {
+        "summary": "Compare Summary",
+        "description": "函数依赖 vs 类依赖 - 总结对比\n\n══════════════════════════════════════════════════════════════\n函数依赖\n══════════════════════════════════════════════════════════════\n\ndef get_data(x: int, y: int) -> dict:\n    return {\"x\": x, \"y\": y, \"sum\": x + y}\n\n@app.get(\"/data\")\nasync def use_data(\n    data: dict = Depends(get_data)\n):\n    return data\n\n✅ 优势：\n- 简单直观\n- 易于理解\n- 适合简单逻辑\n- 函数式编程风格\n\n⚠️  限制：\n- 无法保存状态\n- 每次调用都是新的\n- 不适合复杂逻辑\n\n💡 使用场景：\n- 参数转换\n- 简单验证\n- 纯计算逻辑\n- 不需要状态的场景\n\n══════════════════════════════════════════════════════════════\n类依赖\n══════════════════════════════════════════════════════════════\n\nclass DataProcessor:\n    def __init__(self, x: int, y: int):\n        self.x = x\n        self.y = y\n        self.call_count = 0\n\n    def process(self) -> dict:\n        self.call_count += 1\n        return {\n            \"x\": self.x,\n            \"y\": self.y,\n            \"sum\": self.x + self.y,\n            \"calls\": self.call_count\n        }\n\n@app.get(\"/process\")\nasync def use_processor(\n    processor: DataProcessor = Depends(DataProcessor)\n):\n    return processor.process()\n\n✅ 优势：\n- 可以保存状态\n- 可以提供多个方法\n- 更符合 OOP\n- 适合复杂逻辑\n- 易于扩展\n\n⚠️  限制：\n- 相对复杂\n- 需要理解类和对象\n\n💡 使用场景：\n- 需要状态管理（缓存、计数器）\n- 复杂业务逻辑\n- 需要多个相关方法\n- 面向对象设计\n\n══════════════════════════════════════════════════════════════\n选择建议\n══════════════════════════════════════════════════════════════\n\n使用函数依赖，当：\n✅ 逻辑简单（< 10 行）\n✅ 不需要状态\n✅ 纯计算或转换\n✅ 参数验证\n\n使用类依赖，当：\n✅ 需要状态（缓存、连接）\n✅ 逻辑复杂（> 10 行）\n✅ 需要多个方法\n✅ 面向对象设计\n✅ 需要继承或扩展\n\n══════════════════════════════════════════════════════════════",
+        "operationId": "compare_summary_compare_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

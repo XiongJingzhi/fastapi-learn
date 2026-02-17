@@ -1,0 +1,475 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI 依赖注入基础",
+    "description": "演示依赖注入的基本概念和用法",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/level1/users/{user_id}": {
+      "get": {
+        "summary": "Get User Level1",
+        "description": "❌ Level 1 的典型问题：没有依赖注入\n\n问题分析：\n1. Endpoint 直接操作\"数据库\"（fake_db_level1）\n2. 无法在 CLI 工具中复用这个逻辑\n3. 难以测试（必须启动 HTTP 服务器）\n4. 业务逻辑混在传输层\n\n实际项目中的问题：\n- 如果换数据库，需要修改所有 endpoint\n- 无法写单元测试（被 HTTP 绑定）\n- 代码重复（多个 endpoint 都要写类似的 DB 操作）",
+        "operationId": "get_user_level1_level1_users__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/": {
+      "get": {
+        "summary": "Read Items",
+        "description": "使用依赖注入获取公共参数\n\n✅ 改进：\n- 不需要重复定义 skip/limit/debug\n- FastAPI 自动调用 common_parameters\n- 参数验证逻辑统一管理",
+        "operationId": "read_items_items__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/": {
+      "get": {
+        "summary": "Read Users",
+        "description": "复用相同的依赖\n\n✅ 复用性：\n- common_parameters 在多个 endpoint 间共享\n- 修改一次，所有 endpoint 都生效",
+        "operationId": "read_users_users__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/": {
+      "get": {
+        "summary": "Read Products",
+        "description": "使用带类型的依赖\n\n✅ IDE 支持：\n- commons.skip 会自动补全\n- commons.limit 有类型提示\n- 文档中会显示参数说明",
+        "operationId": "read_products_products__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chain/items/": {
+      "get": {
+        "summary": "Read Items With Chain",
+        "description": "使用依赖链\n\n🔍 FastAPI 自动解析整个依赖链：\n1. 调用 get_query_params()\n2. 将结果传给 get_db_connection(params)\n3. 将结果传给 get_repository(db)\n4. 将结果传给 endpoint(repo)\n\n✅ 好处：\n- 不需要手动管理依赖关系\n- 依赖自动按顺序创建\n- 代码清晰，层次分明",
+        "operationId": "read_items_with_chain_chain_items__get",
+        "parameters": [
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
+            }
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Verbose"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/level2/users/{user_id}": {
+      "get": {
+        "summary": "Get User Level2",
+        "description": "✅ Level 2 的改进：使用依赖注入\n\n🔍 依赖注入的威力：\n\n1. **Endpoint 变薄了**：\n   - 不再直接操作数据库\n   - 只负责协议适配\n   - 业务逻辑在 Service 层\n\n2. **可测试性**：\n   - 可以注入 Mock 的 service\n   - 不需要启动 HTTP 服务器\n   - 单元测试变得简单\n\n3. **可复用性**：\n   - UserService 可以在 CLI 工具中使用\n   - 可以在 gRPC 服务中使用\n   - 不被 HTTP 层绑定\n\n4. **可维护性**：\n   - 各层职责清晰\n   - 修改数据库实现不影响 Service\n   - 修改业务逻辑不影响 Endpoint",
+        "operationId": "get_user_level2_level2_users__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/level2/users/": {
+      "get": {
+        "summary": "List Users Level2",
+        "description": "获取用户列表\n\n✅ 代码复用：\n- 相同的 service 依赖\n- FastAPI 自动缓存\n- 不会重复创建",
+        "operationId": "list_users_level2_level2_users__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cache/demo/{user_id}": {
+      "get": {
+        "summary": "Demo Dependency Cache",
+        "description": "演示依赖缓存\n\n💡 FastAPI 的优化：\n- 同一个请求中使用 Depends(get_user_service)\n- 只会创建一次 UserService 实例\n- service1, service2, service3 是同一个对象\n\n🔍 为什么这很重要？\n- 性能优化（避免重复创建）\n- 状态共享（同一个请求使用同一个连接）\n- 事务管理（确保同一个请求使用同一个数据库会话）",
+        "operationId": "demo_dependency_cache_cache_demo__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compare/level1-vs-level2": {
+      "get": {
+        "summary": "Compare Levels",
+        "description": "Level 1 vs Level 2 对比总结\n\n══════════════════════════════════════════════════════════════\nLevel 1 (没有依赖注入)\n══════════════════════════════════════════════════════════════\n\n@app.get(\"/users/{user_id}\")\nasync def get_user(user_id: int):\n    if user_id not in fake_db:\n        raise HTTPException(404)\n    user = fake_db[user_id]\n    user[\"last_accessed\"] = datetime.now().isoformat()\n    return user\n\n❌ 问题：\n1. Endpoint 直接操作数据库\n2. 业务逻辑混在传输层\n3. 无法复用（CLI、gRPC 无法使用）\n4. 难以测试（必须启动 HTTP 服务器）\n5. 代码重复（多个 endpoint 写类似逻辑）\n\n══════════════════════════════════════════════════════════════\nLevel 2 (使用依赖注入)\n══════════════════════════════════════════════════════════════\n\n@app.get(\"/users/{user_id}\")\nasync def get_user(\n    user_id: int,\n    service: UserService = Depends(get_user_service)\n):\n    return await service.get_user(user_id)\n\n✅ 优势：\n1. Endpoint 只负责协议适配\n2. 业务逻辑在 Service 层\n3. 可以复用（CLI、gRPC 都能用）\n4. 易于测试（注入 Mock）\n5. 代码清晰，职责分明\n\n══════════════════════════════════════════════════════════════",
+        "operationId": "compare_levels_compare_level1_vs_level2_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "根路径 - API 信息",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "健康检查",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

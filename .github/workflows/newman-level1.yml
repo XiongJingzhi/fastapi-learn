@@ -1,0 +1,76 @@
+name: Newman Level1 Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "study/level1/**"
+      - "study/testing/**"
+      - ".github/workflows/newman-level1.yml"
+  pull_request:
+    paths:
+      - "study/level1/**"
+      - "study/testing/**"
+      - ".github/workflows/newman-level1.yml"
+
+jobs:
+  newman-level1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Start FastAPI app
+        run: |
+          nohup .venv/bin/uvicorn study.level1.examples.01_request_validation:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+
+      - name: Wait for app ready
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "App did not become ready in time"
+          cat uvicorn.log || true
+          exit 1
+
+      - name: Run Newman folder
+        run: |
+          BASE_URL=http://127.0.0.1:8000 \
+          FOLDER="Level1 - 01 Request Validation" \
+          ./study/testing/newman/run_newman.sh
+
+      - name: Upload Newman report
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-level1-report
+          path: study/testing/newman/newman-report.xml
+
+      - name: Upload Uvicorn log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvicorn-log
+          path: uvicorn.log
