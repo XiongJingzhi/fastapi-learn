@@ -41,7 +41,7 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def all_cors_origins(self) -> list[str]:
         return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
         return PostgresDsn.build(
@@ -76,6 +76,22 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: str | None = None
+    KAFKA_ENABLED: bool = False
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+    KAFKA_REGISTRATION_EMAIL_TOPIC: str = "user.registration.email"
+    KAFKA_EMAIL_CONSUMER_GROUP: str = "app-email-worker"
+    REDIS_ENABLED: bool = False
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str | None = None
+    REDIS_DECODE_RESPONSES: bool = True
+    EXTERNAL_API_BASE_URL: str = "https://jsonplaceholder.typicode.com"
+    EXTERNAL_API_TIMEOUT_SECONDS: float = 5.0
+    EXTERNAL_API_CACHE_TTL_SECONDS: int = 300
+    EXTERNAL_API_WARMUP_TODO_ID: int = 1
+    SCHEDULER_ENABLED: bool = False
+    SCHEDULER_EXTERNAL_TODO_REFRESH_SECONDS: int = 300
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
@@ -85,10 +101,19 @@ class Settings(BaseSettings):
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def emails_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
+
+    @computed_field
+    @property
+    def kafka_bootstrap_servers(self) -> list[str]:
+        return [
+            server.strip()
+            for server in self.KAFKA_BOOTSTRAP_SERVERS.split(",")
+            if server.strip()
+        ]
 
     EMAIL_TEST_USER: EmailStr = "test@example.com"
     FIRST_SUPERUSER: EmailStr

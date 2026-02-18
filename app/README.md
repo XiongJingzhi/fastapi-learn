@@ -9,6 +9,37 @@
 
 Start the local development environment with Docker Compose following the guide in [../development.md](../development.md).
 
+### Infra + App 一键启动（PostgreSQL/Redis/Kafka/Nginx）
+
+在 `app/` 目录执行：
+
+```console
+$ cp .env.example .env
+$ docker compose up -d --build
+```
+
+服务说明：
+
+- `postgres`: `localhost:5432`
+- `redis`: `localhost:6379`（带密码，见 `.env`）
+- `kafka`: `localhost:9094`
+- `backend`: `localhost:8000`
+- `nginx`: `localhost:80`（反向代理到 backend）
+
+增强能力（基于 study Level4）：
+
+- Redis 缓存：`/api/v1/utils/redis/health/`
+- 外部 API 集成（httpx + 超时 + 重试 + cache-aside）：`/api/v1/utils/external/todos/{todo_id}`
+- 定时任务（APScheduler）：定时预热外部 TODO 缓存 + `/api/v1/utils/scheduler/status/`
+
+常用命令：
+
+```console
+$ docker compose ps
+$ docker compose logs -f backend
+$ docker compose down
+```
+
 ## General Workflow
 
 By default, the dependencies are managed with [uv](https://docs.astral.sh/uv/), go there and install it.

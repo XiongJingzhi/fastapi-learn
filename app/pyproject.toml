@@ -19,6 +19,9 @@ dependencies = [
     "sentry-sdk[fastapi]<2.0.0,>=1.40.6",
     "pyjwt<3.0.0,>=2.8.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
+    "kafka-python>=2.3.0",
+    "redis[hiredis]>=5.2.1",
+    "apscheduler>=3.10.4",
 ]
 
 [dependency-groups]

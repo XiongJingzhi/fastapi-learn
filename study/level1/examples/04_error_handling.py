@@ -2,7 +2,7 @@
 Level 1 - Example 04: 错误处理 (Error Handling)
 
 本示例展示 FastAPI 的错误处理机制：
-1. 使用 HTTPException 抛出 HTTP 错误
+1. 在 Service/Domain 抛出业务异常
 2. 自定义领域异常 (Domain Exception)
 3. 全局异常处理器 (Global Exception Handler)
 4. 异常码到 HTTP 状态码的映射
@@ -138,6 +138,93 @@ fake_users_db: Dict[int, UserResponse] = {
 user_id_counter = 3
 
 
+# ========== Service / Domain 逻辑 ==========
+
+def get_user_or_raise(user_id: int) -> UserResponse:
+    """从存储获取用户，不存在时抛出领域异常。"""
+    user = fake_users_db.get(user_id)
+    if not user:
+        raise NotFoundException("User", user_id)
+    return user
+
+
+def create_user_service(user: UserCreate) -> UserResponse:
+    """创建用户并执行业务校验。"""
+    global user_id_counter
+
+    for existing_user in fake_users_db.values():
+        if existing_user.email == user.email:
+            raise ConflictException("User", "email", user.email)
+
+    new_user = UserResponse(
+        id=user_id_counter,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        created_at=datetime.now()
+    )
+    fake_users_db[user_id_counter] = new_user
+    user_id_counter += 1
+    return new_user
+
+
+def get_item_or_raise(item_id: int) -> Dict[str, Any]:
+    """商品查询业务逻辑。"""
+    if item_id != 1:
+        raise NotFoundException("Item", item_id)
+    return {"id": item_id, "name": "Sample Item"}
+
+
+def validate_special_username(username: str) -> str:
+    """领域规则：用户名必须包含数字。"""
+    if not any(c.isdigit() for c in username):
+        raise BusinessException("用户名必须包含至少一个数字", "USERNAME_NO_NUMBER")
+    return username
+
+
+def trigger_error_service(error_type: str) -> None:
+    """根据错误类型触发对应的领域异常（测试用）。"""
+    if error_type == "not_found":
+        raise NotFoundException("Product", 123)
+    if error_type == "conflict":
+        raise ConflictException("Order", "order_id", "ORD-2024-001")
+    if error_type == "business":
+        raise BusinessException("余额不足", "INSUFFICIENT_BALANCE")
+    if error_type == "permission":
+        raise PermissionDeniedException("您没有权限访问此资源")
+    if error_type == "general":
+        1 / 0
+    raise BusinessException(f"未知错误类型: {error_type}", "UNKNOWN_ERROR_TYPE")
+
+
+def get_user_profile_section_service(user_id: int, section: str) -> Dict[str, Any]:
+    """资料查询业务逻辑。"""
+    _ = get_user_or_raise(user_id)
+
+    valid_sections = ["basic", "contact", "preferences"]
+    if section not in valid_sections:
+        raise BusinessException(
+            message=f"无效的资料部分: {section}. 有效值: {', '.join(valid_sections)}",
+            code="INVALID_SECTION"
+        )
+
+    if section == "preferences" and user_id == 1:
+        raise PermissionDeniedException("您无权访问此用户的偏好设置")
+
+    return {
+        "user_id": user_id,
+        "section": section,
+        "data": f"Sample data for {section} section"
+    }
+
+
+def compare_error_handling_service(use_domain_exception: bool, user_id: int) -> None:
+    """对比不同领域错误场景，统一由全局异常处理器映射。"""
+    if use_domain_exception:
+        raise NotFoundException("User", user_id)
+    raise BusinessException(f"用户 {user_id} 的状态不允许访问", "USER_STATE_INVALID")
+
+
 # ========== 全局异常处理器 ==========
 
 async def domain_exception_handler(
@@ -242,13 +329,7 @@ async def get_user(user_id: int):
     如果用户不存在，抛出 NotFoundException（领域异常）
     全局处理器会自动将其转换为 404 HTTP 响应
     """
-    user = fake_users_db.get(user_id)
-
-    if not user:
-        # 抛出领域异常（不依赖 HTTP）
-        raise NotFoundException("User", user_id)
-
-    return user
+    return get_user_or_raise(user_id)
 
 
 @app.post("/users", status_code=status.HTTP_201_CREATED)
@@ -260,49 +341,17 @@ async def create_user(user: UserCreate):
     - ConflictException: 邮箱已存在 (409)
     - BusinessException: 业务规则违反 (400)
     """
-    global user_id_counter
-
-    # 检查邮箱是否已存在
-    for existing_user in fake_users_db.values():
-        if existing_user.email == user.email:
-            # 抛出领域异常
-            raise ConflictException("User", "email", user.email)
-
-    # 创建用户
-    new_user = UserResponse(
-        id=user_id_counter,
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        created_at=datetime.now()
-    )
-
-    fake_users_db[user_id_counter] = new_user
-    user_id_counter += 1
-
-    return new_user
+    return create_user_service(user)
 
 
-# ========== 示例 2：直接使用 HTTPException ==========
+# ========== 示例 2：在 Service 抛出领域异常 ==========
 
 @app.get("/items/{item_id}")
 async def get_item(item_id: int):
     """
-    获取商品 - 使用 HTTPException
-
-    简单场景可以直接使用 HTTPException
+    获取商品 - 由 Service 抛出领域异常
     """
-    # 模拟商品不存在
-    if item_id != 1:
-        raise HTTPException(
-            status_code=404,
-            detail=f"商品 {item_id} 不存在"
-        )
-
-    return {
-        "id": item_id,
-        "name": "Sample Item"
-    }
+    return get_item_or_raise(item_id)
 
 
 # ========== 示例 3：自定义验证错误 ==========
@@ -316,9 +365,7 @@ class SpecialUserCreate(BaseModel):
     @classmethod
     def username_must_contain_number(cls, v):
         """用户名必须包含数字"""
-        if not any(c.isdigit() for c in v):
-            raise BusinessException("用户名必须包含至少一个数字", "USERNAME_NO_NUMBER")
-        return v
+        return validate_special_username(v)
 
 
 @app.post("/users/special")
@@ -345,36 +392,10 @@ async def trigger_error(error_type: str):
     - conflict: 资源冲突
     - business: 业务规则违反
     - permission: 权限不足
-    - http: 直接 HTTPException
     - general: 未捕获的异常
     """
-    if error_type == "not_found":
-        raise NotFoundException("Product", 123)
-
-    elif error_type == "conflict":
-        raise ConflictException("Order", "order_id", "ORD-2024-001")
-
-    elif error_type == "business":
-        raise BusinessException("余额不足", "INSUFFICIENT_BALANCE")
-
-    elif error_type == "permission":
-        raise PermissionDeniedException("您没有权限访问此资源")
-
-    elif error_type == "http":
-        raise HTTPException(
-            status_code=400,
-            detail="直接使用 HTTPException"
-        )
-
-    elif error_type == "general":
-        # 触发通用异常（被 general_exception_handler 捕获）
-        1 / 0  # ZeroDivisionError
-
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"未知错误类型: {error_type}"
-        )
+    trigger_error_service(error_type)
+    return {"ok": True}
 
 
 # ========== 示例 5：多级错误处理 ==========
@@ -389,29 +410,7 @@ async def get_user_profile_section(user_id: int, section: str):
     2. 资料部分不存在 (404)
     3. 权限不足 (403)
     """
-    # 1. 检查用户是否存在
-    user = fake_users_db.get(user_id)
-    if not user:
-        raise NotFoundException("User", user_id)
-
-    # 2. 检查资料部分是否有效
-    valid_sections = ["basic", "contact", "preferences"]
-    if section not in valid_sections:
-        raise BusinessException(
-            message=f"无效的资料部分: {section}. 有效值: {', '.join(valid_sections)}",
-            code="INVALID_SECTION"
-        )
-
-    # 3. 模拟权限检查
-    if section == "preferences" and user_id == 1:
-        raise PermissionDeniedException("您无权访问此用户的偏好设置")
-
-    # 返回资料数据
-    return {
-        "user_id": user_id,
-        "section": section,
-        "data": f"Sample data for {section} section"
-    }
+    return get_user_profile_section_service(user_id, section)
 
 
 # ========== 示例 6：错误响应对比 ==========
@@ -421,29 +420,13 @@ async def compare_error_handling(use_domain_exception: bool, user_id: int = 999)
     """
     对比两种错误处理方式
 
-    - use_domain_exception=true: 使用领域异常（推荐）
-    - use_domain_exception=false: 使用 HTTPException（不推荐）
+    - use_domain_exception=true: 资源不存在场景
+    - use_domain_exception=false: 业务规则冲突场景
 
     访问：/compare/true 或 /compare/false
     """
-    if use_domain_exception:
-        # ✅ 推荐：使用领域异常
-        # 优点：
-        # 1. Service 层不依赖 HTTP
-        # 2. 可以在其他场景复用（如 CLI、gRPC）
-        # 3. 便于单元测试
-        raise NotFoundException("User", user_id)
-
-    else:
-        # ❌ 不推荐：直接使用 HTTPException
-        # 缺点：
-        # 1. 如果在 Service 层使用，会耦合 HTTP
-        # 2. 难以在其他场景复用
-        # 3. 测试时需要模拟 HTTP
-        raise HTTPException(
-            status_code=404,
-            detail=f"用户 {user_id} 不存在"
-        )
+    compare_error_handling_service(use_domain_exception, user_id)
+    return {"ok": True}
 
 
 # ========== 主程序入口 ==========

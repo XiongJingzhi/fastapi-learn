@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1
 
@@ -14,32 +14,29 @@ ENV UV_COMPILE_BYTECODE=1
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#caching
 ENV UV_LINK_MODE=copy
 
-WORKDIR /app/
+WORKDIR /app
 
 # Place executables in the environment at the front of the path
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
 # Install dependencies
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-workspace --package app
+    --mount=type=bind,source=app/uv.lock,target=uv.lock \
+    --mount=type=bind,source=app/pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-dev --no-install-project
 
-COPY ./backend/scripts /app/backend/scripts
-
-COPY ./backend/pyproject.toml ./backend/alembic.ini /app/backend/
-
-COPY ./backend/app /app/backend/app
+COPY ./app/scripts /app/scripts
+COPY ./app/alembic.ini /app/alembic.ini
+COPY ./app/app /app/app
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --package app
+    --mount=type=bind,source=app/uv.lock,target=uv.lock \
+    --mount=type=bind,source=app/pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-dev --no-install-project
 
-WORKDIR /app/backend/
-
-CMD ["fastapi", "run", "--workers", "4", "app/main.py"]
+CMD ["bash", "-c", "bash scripts/prestart.sh && fastapi run --workers 2 app/main.py --host 0.0.0.0 --port 8000"]

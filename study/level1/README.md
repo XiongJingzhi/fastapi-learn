@@ -25,21 +25,22 @@ Endpoint 只负责：
 study/level1/
 ├── README.md                  # 本文件：学习概览
 ├── notes/                     # 学习笔记和费曼讲解
+│   ├── 00_architecture_overview.md
 │   ├── 01_request_validation.md
 │   ├── 02_response_handling.md
 │   ├── 03_unified_response.md
 │   ├── 04_error_handling.md
-│   └── 05_http_semantics.md
+│   ├── 05_deep_questions.md
+│   └── 06_middleware_and_upload.md
 ├── examples/                  # 代码示例
+│   ├── 00_pydantic_basics.py
 │   ├── 01_request_validation.py
 │   ├── 02_response_handling.py
 │   ├── 03_unified_response.py
 │   ├── 04_error_handling.py
 │   └── 05_restful_api.py
 └── exercises/                 # 练习题和实验
-    ├── 01_basic_exercises.md
-    ├── 02_intermediate_exercises.md
-    └── 03_challenge_projects.md
+    └── 01_basic_exercises.md
 ```
 
 ## 📖 学习路径
@@ -52,7 +53,7 @@ study/level1/
 **学习材料**:
 - 笔记: `notes/01_request_validation.md`
 - 示例: `examples/01_request_validation.py`
-- 运行: `uvicorn app.examples.01_request_validation:app --reload`
+- 运行: `uvicorn study.level1.examples.01_request_validation:app --reload`
 
 **完成标准**:
 - [ ] 理解 Path/Query/Body/Header/Cookie 参数的区别
@@ -191,7 +192,7 @@ async def value_error_handler(request, exc):
 **核心概念**: RESTful, HTTP 方法, 资源命名
 
 **学习材料**:
-- 笔记: `notes/05_http_semantics.md`
+- 笔记: `notes/05_deep_questions.md`
 - 示例: `examples/05_restful_api.py`
 
 **完成标准**:
@@ -216,7 +217,7 @@ DELETE /users/123      # 删除
 运行测试验证你的理解：
 
 ```bash
-pytest tests/test_fastapi_basics.py -v
+BASE_URL=http://localhost:8000 ./study/testing/smoke_level1.sh
 ```
 
 **测试覆盖**:
