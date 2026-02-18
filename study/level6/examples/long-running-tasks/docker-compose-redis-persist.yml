@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Redis（任务状态持久化）
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - long-running-tasks
+
+  # Nginx（任务 ID 哈希路由）
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/redis-persist.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - api-1
+      - api-2
+      - api-3
+    networks:
+      - long-running-tasks
+
+  # API 节点 1
+  api-1:
+    build:
+      context: ./redis-persist
+      dockerfile: Dockerfile
+    container_name: api-1
+    environment:
+      - SERVICE_NAME=api-1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - long-running-tasks
+
+  # API 节点 2
+  api-2:
+    build:
+      context: ./redis-persist
+      dockerfile: Dockerfile
+    container_name: api-2
+    environment:
+      - SERVICE_NAME=api-2
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - long-running-tasks
+
+  # API 节点 3
+  api-3:
+    build:
+      context: ./redis-persist
+      dockerfile: Dockerfile
+    container_name: api-3
+    environment:
+      - SERVICE_NAME=api-3
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - long-running-tasks
+
+volumes:
+  redis-data:
+
+networks:
+  long-running-tasks:
+    driver: bridge
