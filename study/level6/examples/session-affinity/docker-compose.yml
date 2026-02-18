@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # 方案 1：IP Hash 负载均衡
+  nginx-ip-hash:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/ip-hash.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - ip-hash-api-1
+      - ip-hash-api-2
+      - ip-hash-api-3
+    networks:
+      - session-affinity
+  
+  ip-hash-api-1:
+    build:
+      context: ./fastapi/ip-hash
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=ip-hash-api-1
+    networks:
+      - session-affinity
+  
+  ip-hash-api-2:
+    build:
+      context: ./fastapi/ip-hash
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=ip-hash-api-2
+    networks:
+      - session-affinity
+  
+  ip-hash-api-3:
+    build:
+      context: ./fastapi/ip-hash
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=ip-hash-api-3
+    networks:
+      - session-affinity
+
+  # 方案 3：JWT + 本地缓存
+  nginx-jwt:
+    image: nginx:alpine
+    ports:
+      - "8001:80"
+    volumes:
+      - ./nginx/jwt.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - jwt-api-1
+      - jwt-api-2
+      - jwt-api-3
+    networks:
+      - session-affinity
+  
+  jwt-api-1:
+    build:
+      context: ./fastapi/jwt-auth
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=jwt-api-1
+    networks:
+      - session-affinity
+  
+  jwt-api-2:
+    build:
+      context: ./fastapi/jwt-auth
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=jwt-api-2
+    networks:
+      - session-affinity
+  
+  jwt-api-3:
+    build:
+      context: ./fastapi/jwt-auth
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=jwt-api-3
+    networks:
+      - session-affinity
+
+  # 方案 4：Redis 共享会话
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - session-affinity
+  
+  nginx-redis-session:
+    image: nginx:alpine
+    ports:
+      - "8002:80"
+    volumes:
+      - ./nginx/redis-session.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - redis-session-api-1
+      - redis-session-api-2
+      - redis-session-api-3
+      - redis
+    networks:
+      - session-affinity
+  
+  redis-session-api-1:
+    build:
+      context: ./fastapi/redis-session
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=redis-session-api-1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - session-affinity
+  
+  redis-session-api-2:
+    build:
+      context: ./fastapi/redis-session
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=redis-session-api-2
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - session-affinity
+  
+  redis-session-api-3:
+    build:
+      context: ./fastapi/redis-session
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=redis-session-api-3
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - session-affinity
+
+volumes:
+  redis-data:
+
+networks:
+  session-affinity:
+    driver: bridge
