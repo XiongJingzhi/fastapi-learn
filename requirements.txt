@@ -16,3 +16,9 @@ httpx>=0.25.0
 
 # 开发工具
 ruff>=0.1.0
+
+# 定时任务（Level 4 - 主题7）
+apscheduler>=3.10.0        # APScheduler
+celery>=5.3.0              # Celery Beat和Worker
+redis>=5.0.0               # Redis（Celery Broker）
+flower>=2.0.0              # Celery监控界面（可选）
