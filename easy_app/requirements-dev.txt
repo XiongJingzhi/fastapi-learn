@@ -1,0 +1,14 @@
+# 测试框架
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+
+# HTTP 客户端 (与 FastAPI 测试配套)
+httpx>=0.27.0
+
+# 代码质量与格式化
+black>=24.8.0
+ruff>=0.6.0
+pre-commit>=3.8.0
+
+# 异步数据库驱动
+aiosqlite>=0.20.0
